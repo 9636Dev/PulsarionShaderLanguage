@@ -2,6 +2,8 @@
 #include <PulsarionCore/Log.hpp>
 #include <PulsarionCore/File.hpp>
 
+#include "Core.hpp"
+
 namespace Pulsarion::Shader
 {
     enum class TokenType
@@ -175,7 +177,7 @@ namespace Pulsarion::Shader
         }
     };
 
-    class Lexer
+    class PULSARION_SHADER_LANGUAGE_API Lexer
     {
     public:
         Lexer(const std::string& source);

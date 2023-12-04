@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(PULSARION_SHADER_LANGUAGE_SOURCES
+    src/PulsarionShaderLanguage/Core.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.cpp
     src/PulsarionShaderLanguage/Lexer.hpp
@@ -21,6 +22,11 @@ endif()
 
 add_library(PulsarionShaderLanguage ${PULSARION_LIBRARY_TYPE} ${PULSARION_SHADER_LANGUAGE_SOURCES})
 
+if (PULSARION_LIBRARY_TYPE STREQUAL "SHARED")
+    target_compile_definitions(PulsarionShaderLanguage PUBLIC PULSARION_SHADER_LANGUAGE_BUILD_DLL)
+endif()
+
 target_include_directories(PulsarionShaderLanguage PUBLIC src)
 
+add_dependencies(PulsarionShaderLanguage Pulsarion::Core)
 target_link_libraries(PulsarionShaderLanguage PUBLIC Pulsarion::Core)
