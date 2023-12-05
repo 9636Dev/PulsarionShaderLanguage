@@ -7,8 +7,12 @@ set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/Core.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.cpp
+    src/PulsarionShaderLanguage/Token.hpp
+    src/PulsarionShaderLanguage/Token.cpp
     src/PulsarionShaderLanguage/Lexer.hpp
     src/PulsarionShaderLanguage/Lexer.cpp
+    src/PulsarionShaderLanguage/Parser.hpp
+    src/PulsarionShaderLanguage/Parser.cpp
     src/PulsarionShaderLanguage/ContextFreeGrammar.hpp
     src/PulsarionShaderLanguage/ContextFreeGrammar.cpp
     src/PulsarionShaderLanguage/AbstractSyntaxTree.hpp
