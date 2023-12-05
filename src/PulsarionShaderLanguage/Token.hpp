@@ -97,6 +97,11 @@ namespace Pulsarion::Shader
             : Type(type), Value(value), Line(line), Column(column)
         {
         }
+
+        Token() : Token(TokenType::Unknown, "", 0, 0)
+        {
+
+        }
     };
 
 }

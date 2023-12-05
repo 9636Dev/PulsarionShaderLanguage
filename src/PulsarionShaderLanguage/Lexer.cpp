@@ -235,9 +235,7 @@ namespace Pulsarion::Shader
             case '\r':
                 // If there is a \n skip that as well and call NewLine. We want to support CR, LF, and CRLF.
                 if (PeekChar() == '\n')
-                {
                     (void)NextChar();
-                }
                 NewLine();
                 break;
             case '\n':

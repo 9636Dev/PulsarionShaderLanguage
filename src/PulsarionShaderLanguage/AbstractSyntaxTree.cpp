@@ -2,6 +2,18 @@
 
 namespace Pulsarion::Shader
 {
+    std::string NodeTypeToString(NodeType type)
+    {
+        switch (type)
+        {
+        case NodeType::TokenNode: return "TokenNode";
+        case NodeType::ScopeNode: return "ScopeNode";
+        case NodeType::StatementNode: return "StatementNode";
+        case NodeType::BinaryOperatorNode: return "BinaryOperatorNode";
+        case NodeType::AssignmentNode: return "AssignmentNode";
+        }
+    }
+
     SyntaxNode::SyntaxNode(NodeDescriptor descriptor, std::vector<SyntaxNode> children)
         : m_descriptor(descriptor)
         , m_children(children)

@@ -5,14 +5,20 @@
 
 #include <vector>
 #include <optional>
+#include <sstream>
 
 namespace Pulsarion::Shader
 {
     enum class NodeType
     {
         TokenNode,
-        ScopeNode,
+        ScopeNode, // { ... }
+        StatementNode, // This is used to seperate statements and has no actual use in AST generation
+        AssignmentNode, // a = b
+        BinaryOperatorNode, // a + b
     };
+
+    PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);
 
     struct NodeDescriptor
     {
@@ -28,13 +34,38 @@ namespace Pulsarion::Shader
     {
     public:
         SyntaxNode(NodeDescriptor descriptor, std::vector<SyntaxNode> children);
-        ~SyntaxNode() = default;
+         ~SyntaxNode() = default;
 
         const NodeDescriptor& GetDescriptor() const;
         std::vector<SyntaxNode>& GetChildren();
         
-    private:
+    protected:
         NodeDescriptor m_descriptor;
         std::vector<SyntaxNode> m_children;
     };
+
+    inline SyntaxNode AssigmentNode(NodeDescriptor descriptor, SyntaxNode left, SyntaxNode right) {
+		return SyntaxNode(descriptor, { left, right });
+	}
+
+    inline SyntaxNode BinaryOperatorNode(NodeDescriptor descriptor, SyntaxNode left, SyntaxNode right) {
+		return SyntaxNode(descriptor, { left, right });
+    }
+
+    inline std::string SyntaxNodeToString(SyntaxNode& node, int depth = 0) {
+        std::string indent(depth * 4, ' '); // Create an indentation string
+        const auto& descriptor = node.GetDescriptor();
+
+        std::stringstream ss;
+        ss << indent << "Node Type: " << NodeTypeToString(descriptor.Type) << "\n";
+        if (descriptor.Content.has_value()) {
+            ss << indent << "Content: " << descriptor.Content.value().Value << "\n";
+        }
+        ss << indent << "Start: " << descriptor.Start << ", End: " << descriptor.End << "\n";
+
+        for (auto& child : node.GetChildren()) {
+            ss << SyntaxNodeToString(child, depth + 1);
+        }
+        return ss.str();
+    }
 }

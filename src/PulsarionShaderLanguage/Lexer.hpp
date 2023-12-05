@@ -1,3 +1,4 @@
+#pragma once
 #include <PulsarionCore/Core.hpp>
 #include <PulsarionCore/Log.hpp>
 #include <PulsarionCore/File.hpp>
@@ -18,6 +19,9 @@ namespace Pulsarion::Shader
 
         inline std::size_t GetPosition() const { return m_Index; }
         inline bool IsEnd() const { return m_Index >= m_Source.size(); }
+
+        static bool IsDigit(char c);
+        static bool IsIdentifierStart(char c);
     private:
         void SkipWhitespace();
         /// <summary>
@@ -41,9 +45,6 @@ namespace Pulsarion::Shader
         Token ReadChar();
         Token ReadComment();
         Token ReadIdentifier();
-
-        bool IsDigit(char c);
-        bool IsIdentifierStart(char c);
 
         std::string m_Source;
         std::size_t m_Index = 0;
