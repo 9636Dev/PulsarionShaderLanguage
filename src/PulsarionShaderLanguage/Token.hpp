@@ -92,13 +92,14 @@ namespace Pulsarion::Shader
         std::string Value;
         std::size_t Line;
         std::size_t Column;
+        std::size_t Index;
 
-        Token(TokenType type, std::string value, std::size_t line, std::size_t column)
-            : Type(type), Value(value), Line(line), Column(column)
+        Token(TokenType type, std::string value, std::size_t line, std::size_t column, std::size_t index)
+            : Type(type), Value(value), Line(line), Column(column), Index(index)
         {
         }
 
-        Token() : Token(TokenType::Unknown, "", 0, 0)
+        Token() : Token(TokenType::Unknown, "", 0, 0, 0)
         {
 
         }

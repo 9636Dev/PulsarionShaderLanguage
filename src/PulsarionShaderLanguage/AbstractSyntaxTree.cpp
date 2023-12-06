@@ -9,6 +9,8 @@ namespace Pulsarion::Shader
         case NodeType::TokenNode: return "TokenNode";
         case NodeType::ScopeNode: return "ScopeNode";
         case NodeType::StatementNode: return "StatementNode";
+        case NodeType::LiteralNode: return "LiteralNode";
+        case NodeType::IdentifierNode: return "IdentifierNode";
         case NodeType::BinaryOperatorNode: return "BinaryOperatorNode";
         case NodeType::AssignmentNode: return "AssignmentNode";
         }

@@ -14,6 +14,8 @@ namespace Pulsarion::Shader
         TokenNode,
         ScopeNode, // { ... }
         StatementNode, // This is used to seperate statements and has no actual use in AST generation
+        IdentifierNode, // a, a::b, a.b
+        LiteralNode, // 1, 1.0, 'a'
         AssignmentNode, // a = b
         BinaryOperatorNode, // a + b
     };
@@ -23,7 +25,7 @@ namespace Pulsarion::Shader
     struct NodeDescriptor
     {
         NodeType Type;
-        std::optional<Token> Content; 
+        std::optional<Token> Content;
         std::size_t Start;
         std::size_t End;
 
@@ -38,7 +40,7 @@ namespace Pulsarion::Shader
 
         const NodeDescriptor& GetDescriptor() const;
         std::vector<SyntaxNode>& GetChildren();
-        
+
     protected:
         NodeDescriptor m_descriptor;
         std::vector<SyntaxNode> m_children;
@@ -59,7 +61,7 @@ namespace Pulsarion::Shader
         std::stringstream ss;
         ss << indent << "Node Type: " << NodeTypeToString(descriptor.Type) << "\n";
         if (descriptor.Content.has_value()) {
-            ss << indent << "Content: " << descriptor.Content.value().Value << "\n";
+            ss << indent << "Content: " << descriptor.Content.value().Value << " (" << descriptor.Content->Line << ":" << descriptor.Content->Column << ")" << "\n";
         }
         ss << indent << "Start: " << descriptor.Start << ", End: " << descriptor.End << "\n";
 
