@@ -14,8 +14,27 @@ namespace Pulsarion::Shader
         TokenNode,
         ScopeNode, // { ... }
         StatementNode, // This is used to seperate statements and has no actual use in AST generation
+        ExpressionNode, // This is used to seperate expressions and has no actual use in AST generation, except for order of operations
+
         IdentifierNode, // a, a::b, a.b
         LiteralNode, // 1, 1.0, 'a'
+
+        IfNode, // if (...) { ... }
+        ElseNode, // else { ... }
+        ForNode, // for (...) { ... }
+        WhileNode, // while (...) { ... }
+        StructNode, // struct { ... }
+        DoNode, // do { ... } while (...);
+
+        DefaultKeywordNode, // default
+        BreakKeywordNode, // break
+        ContinueKeywordNode, // continue
+        ReturnKeywordNode, // return
+        SwitchKeywordNode, // switch (...)
+        CaseKeywordNode, // case x:
+        UsingKeywordNode, // using a::b;
+        NamespaceKeywordNode, // namespace a { ... }
+
         AssignmentNode, // a = b
         BinaryOperatorNode, // a + b
     };
@@ -55,7 +74,7 @@ namespace Pulsarion::Shader
     }
 
     inline std::string SyntaxNodeToString(SyntaxNode& node, int depth = 0) {
-        std::string indent(depth * 4, ' '); // Create an indentation string
+        std::string indent(depth, '-'); // Create an indentation string
         const auto& descriptor = node.GetDescriptor();
 
         std::stringstream ss;

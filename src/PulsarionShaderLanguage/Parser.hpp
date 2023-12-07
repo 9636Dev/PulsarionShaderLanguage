@@ -24,23 +24,25 @@ namespace Pulsarion::Shader
         ~Parser() = default;
 
         std::optional<SyntaxNode> Parse();
-        const std::vector<ErrorInfo>& GetErrors() const;
+        [[nodiscard]] const std::vector<ErrorInfo>& GetErrors() const;
 
         static bool IsValidExpressionToken(const Token& token);
+        static bool IsValidStatementToken(const Token& token);
     private:
         std::optional<SyntaxNode> ParseScope(); // { ... }
         std::optional<SyntaxNode> ParseStatement();
         std::optional<SyntaxNode> ParseExpression();
-        std::optional<SyntaxNode> ParseExpressionBacktrack(); // A version of ParseExpression that doesn't actually advance the token stream.
+        std::optional<SyntaxNode> ParseSubExpression();
 
         std::optional<SyntaxNode> ParseIdentifier();
         std::optional<SyntaxNode> ParseLiteral();
+        std::optional<SyntaxNode> ParseKeyword();
+        std::optional<SyntaxNode> ParseStatementKeyword();
 
         void ClearBacktrack();
         void Backtrack(std::size_t n);
         Token ReadToken();
         const Token& PeekToken(std::size_t n = 0);
-        Token PeekBackToken(std::size_t n = 1);
         void ConsumeToken(std::size_t n = 1);
 
         std::size_t m_CurrentTokenIndex;

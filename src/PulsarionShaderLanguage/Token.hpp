@@ -3,6 +3,8 @@
 #include "Core.hpp"
 
 #include <string>
+#include <utility>
+#include <utility>
 
 namespace Pulsarion::Shader
 {
@@ -80,8 +82,11 @@ namespace Pulsarion::Shader
         Break,
         Continue,
         Return,
+        Struct,
         True,
         False,
+        Using,
+        Namespace,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string TokenToString(TokenType type);
@@ -95,7 +100,7 @@ namespace Pulsarion::Shader
         std::size_t Index;
 
         Token(TokenType type, std::string value, std::size_t line, std::size_t column, std::size_t index)
-            : Type(type), Value(value), Line(line), Column(column), Index(index)
+            : Type(type), Value(std::move(value)), Line(line), Column(column), Index(index)
         {
         }
 

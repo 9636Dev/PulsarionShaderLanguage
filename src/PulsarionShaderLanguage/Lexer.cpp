@@ -4,6 +4,7 @@
 #include <PulsarionCore/Assert.hpp>
 
 #include <unordered_map>
+#include <utility>
 
 namespace Pulsarion::Shader
 {
@@ -21,84 +22,87 @@ namespace Pulsarion::Shader
         { "switch", TokenType::Switch },
         { "case", TokenType::Case },
         { "default", TokenType::Default },
+        { "struct", TokenType::Struct },
+        { "using", TokenType::Using },
+        { "namespace", TokenType::Namespace },
         // Just basic tokens, add more later
     };
 
-    Lexer::Lexer(const std::string& source)
-        : m_Source(source)
+    Lexer::Lexer(std::string source)
+        : m_Source(std::move(source))
     {
     }
 
-    Lexer::~Lexer()
-    {
-    }
+    Lexer::~Lexer() = default;
 
     Token Lexer::NextToken()
     {
         SkipWhitespace();
 
         if (m_Index + 1 >= m_Source.size())
-            return Token(TokenType::EndOfFile, "", m_Line, m_Column, m_Index); // We are at the end of the file, + 1 because we count the character we advance.
+            return {TokenType::EndOfFile, "", m_Line, m_Column, m_Index}; // We are at the end of the file, + 1 because we count the character we advance.
 
         const char c = NextChar();
+        std::size_t column = m_Column - 1;
+        std::size_t index = m_Index - 1;
         switch (c)
         {
         case '(':
-            return Token(TokenType::LeftParenthesis, "(", m_Line, m_Column, m_Index);
+            return {TokenType::LeftParenthesis, "(", m_Line, column, index};
         case ')':
-            return Token(TokenType::RightParenthesis, ")", m_Line, m_Column, m_Index);
+            return {TokenType::RightParenthesis, ")", m_Line, column, index};
         case '[':
-            return Token(TokenType::LeftBracket, "[", m_Line, m_Column, m_Index);
+            return {TokenType::LeftBracket, "[", m_Line, column, index};
         case ']':
-            return Token(TokenType::RightBracket, "]", m_Line, m_Column, m_Index);
+            return {TokenType::RightBracket, "]", m_Line, column, index};
         case '{':
-            return Token(TokenType::LeftBrace, "{", m_Line, m_Column, m_Index);
+            return {TokenType::LeftBrace, "{", m_Line, column, index};
         case '}':
-            return Token(TokenType::RightBrace, "}", m_Line, m_Column, m_Index);
+            return {TokenType::RightBrace, "}", m_Line, column, index};
         case ';':
-            return Token(TokenType::Semicolon, ";", m_Line, m_Column, m_Index);
+            return {TokenType::Semicolon, ";", m_Line, column, index};
         case ':':
             if (CurrentChar() == ':')
             {
                 (void)NextChar();
-                return Token(TokenType::ColonColon, "::", m_Line, m_Column, m_Index);
+                return {TokenType::ColonColon, "::", m_Line, column, index};
             }
-            return Token(TokenType::Colon, ":", m_Line, m_Column, m_Index);
+            return {TokenType::Colon, ":", m_Line, column, index};
         case ',':
-            return Token(TokenType::Comma, ",", m_Line, m_Column, m_Index);
+            return {TokenType::Comma, ",", m_Line, column, index};
         case '.':
-            return Token(TokenType::Dot, ".", m_Line, m_Column, m_Index);
+            return {TokenType::Dot, ".", m_Line, column, index};
         case '+':
             if (CurrentChar() == '+')
             {
                 (void)NextChar();
-                return Token(TokenType::Increment, "++", m_Line, m_Column, m_Index);
+                return {TokenType::Increment, "++", m_Line, column, index};
             }
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::PlusEqual, "+=", m_Line, m_Column, m_Index);
+                return {TokenType::PlusEqual, "+=", m_Line, column, index};
             }
-            return Token(TokenType::Plus, "+", m_Line, m_Column, m_Index);
+            return {TokenType::Plus, "+", m_Line, column, index};
         case '-':
             if (CurrentChar() == '-')
             {
                 (void)NextChar();
-                return Token(TokenType::Decrement, "--", m_Line, m_Column, m_Index);
+                return {TokenType::Decrement, "--", m_Line, column, index};
             }
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::MinusEqual, "-=", m_Line, m_Column, m_Index);
+                return {TokenType::MinusEqual, "-=", m_Line, column, index};
             }
-            return Token(TokenType::Minus, "-", m_Line, m_Column, m_Index);
+            return {TokenType::Minus, "-", m_Line, column, index};
         case '*':
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::AsteriskEqual, "*=", m_Line, m_Column, m_Index);
+                return {TokenType::AsteriskEqual, "*=", m_Line, column, index};
             }
-            return Token(TokenType::Asterisk, "*", m_Line, m_Column, m_Index);
+            return {TokenType::Asterisk, "*", m_Line, column, index};
         case '/':
             if (CurrentChar() == '/')
             {
@@ -108,30 +112,30 @@ namespace Pulsarion::Shader
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::SlashEqual, "/=", m_Line, m_Column, m_Index);
+                return {TokenType::SlashEqual, "/=", m_Line, column, index};
             }
-            return Token(TokenType::Slash, "/", m_Line, m_Column, m_Index);
+            return {TokenType::Slash, "/", m_Line, column, index};
         case '%':
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::PercentEqual, "%=", m_Line, m_Column, m_Index);
+                return {TokenType::PercentEqual, "%=", m_Line, column, index};
             }
-            return Token(TokenType::Percent, "%", m_Line, m_Column, m_Index);
+            return {TokenType::Percent, "%", m_Line, column, index};
         case '=':
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::EqualEqual, "==", m_Line, m_Column, m_Index);
+                return {TokenType::EqualEqual, "==", m_Line, column, index};
             }
-            return Token(TokenType::Equal, "=", m_Line, m_Column, m_Index);
+            return {TokenType::Equal, "=", m_Line, column, index};
         case '!':
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::NotEqual, "!=", m_Line, m_Column, m_Index);
+                return {TokenType::NotEqual, "!=", m_Line, column, index};
             }
-            return Token(TokenType::Exclamation, "!", m_Line, m_Column, m_Index);
+            return {TokenType::Exclamation, "!", m_Line, column, index};
         case '>':
             if (CurrentChar() == '>') // Shift right
             {
@@ -139,16 +143,16 @@ namespace Pulsarion::Shader
                 if (CurrentChar() == '=')
                 {
                     (void)NextChar();
-                    return Token(TokenType::RightShiftEqual, ">>=", m_Line, m_Column, m_Index);
+                    return {TokenType::RightShiftEqual, ">>=", m_Line, column, index};
                 }
-                return Token(TokenType::RightShift, ">>", m_Line, m_Column, m_Index);
+                return {TokenType::RightShift, ">>", m_Line, column, index};
             }
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::GreaterThanEqual, ">=", m_Line, m_Column, m_Index);
+                return {TokenType::GreaterThanEqual, ">=", m_Line, column, index};
             }
-            return Token(TokenType::GreaterThan, ">", m_Line, m_Column, m_Index);
+            return {TokenType::GreaterThan, ">", m_Line, column, index};
         case '<':
             if (CurrentChar() == '<') // Shift left
             {
@@ -156,58 +160,58 @@ namespace Pulsarion::Shader
                 if (CurrentChar() == '=')
                 {
                     (void)NextChar();
-                    return Token(TokenType::LeftShiftEqual, "<<=", m_Line, m_Column, m_Index);
+                    return {TokenType::LeftShiftEqual, "<<=", m_Line, column, index};
                 }
-                return Token(TokenType::LeftShift, "<<", m_Line, m_Column, m_Index);
+                return {TokenType::LeftShift, "<<", m_Line, column, index};
             }
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::LessThanEqual, "<=", m_Line, m_Column, m_Index);
+                return {TokenType::LessThanEqual, "<=", m_Line, column, index};
             }
-            return Token(TokenType::LessThan, "<", m_Line, m_Column, m_Index);
+            return {TokenType::LessThan, "<", m_Line, column, index};
         case '&':
             if (CurrentChar() == '&')
             {
                 (void)NextChar();
-                return Token(TokenType::LogicalAnd, "&&", m_Line, m_Column, m_Index);
+                return {TokenType::LogicalAnd, "&&", m_Line, column, index};
             }
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::AmpersandEqual, "&=", m_Line, m_Column, m_Index);
+                return {TokenType::AmpersandEqual, "&=", m_Line, column, index};
             }
-            return Token(TokenType::Ampersand, "&", m_Line, m_Column, m_Index);
+            return {TokenType::Ampersand, "&", m_Line, column, index};
         case '|':
             if (CurrentChar() == '|')
             {
                 (void)NextChar();
-                return Token(TokenType::LogicalOr, "||", m_Line, m_Column, m_Index);
+                return {TokenType::LogicalOr, "||", m_Line, column, index};
             }
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::PipeEqual, "|=", m_Line, m_Column, m_Index);
+                return {TokenType::PipeEqual, "|=", m_Line, column, index};
             }
-            return Token(TokenType::Pipe, "|", m_Line, m_Column, m_Index);
+            return {TokenType::Pipe, "|", m_Line, column, index};
         case '^':
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::CaretEqual, "^=", m_Line, m_Column, m_Index);
+                return {TokenType::CaretEqual, "^=", m_Line, column, index};
             }
-            return Token(TokenType::Caret, "^", m_Line, m_Column, m_Index);
+            return {TokenType::Caret, "^", m_Line, column, index};
         case '~':
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
-                return Token(TokenType::TildeEqual, "~=", m_Line, m_Column, m_Index);
+                return {TokenType::TildeEqual, "~=", m_Line, column, index};
             }
-            return Token(TokenType::Tilde, "~", m_Line, m_Column, m_Index);
+            return {TokenType::Tilde, "~", m_Line, column, index};
         case '?':
-            return Token(TokenType::Question, "?", m_Line, m_Column, m_Index);
+            return {TokenType::Question, "?", m_Line, column, index};
         case '#':
-            return Token(TokenType::Hash, "#", m_Line, m_Column, m_Index);
+            return {TokenType::Hash, "#", m_Line, column, index};
         case '\'':
             return ReadChar();
         default:
@@ -221,7 +225,7 @@ namespace Pulsarion::Shader
             return ReadIdentifier();
 
         // Implement later
-        return Token(TokenType::Unknown, "", m_Line, m_Column, m_Index);
+        return {TokenType::Unknown, "", m_Line, column, index};
     }
 
     void Lexer::SkipWhitespace()
@@ -249,7 +253,7 @@ namespace Pulsarion::Shader
         }
     }
 
-    char Lexer::PeekChar()
+    char Lexer::PeekChar() const
     {
         if (m_Index + 1 >= m_Source.size())
             return '\0'; // It is fine to peek past the end of the source, just return null.
@@ -257,7 +261,7 @@ namespace Pulsarion::Shader
         return m_Source[m_Index + 1];
     }
 
-    char Lexer::CurrentChar()
+    char Lexer::CurrentChar() const
     {
         PULSARION_ASSERT(m_Index < m_Source.size(), "Lexer reached end of source but continued to read!");
         return m_Source[m_Index];
@@ -266,7 +270,7 @@ namespace Pulsarion::Shader
     char Lexer::NextChar()
     {
         PULSARION_ASSERT(m_Index < m_Source.size(), "Lexer reached end of source but continued to read!");
-        char c = m_Source[m_Index++];
+        const char c = m_Source[m_Index++];
         m_Column++;
         return c;
     }
@@ -293,26 +297,28 @@ namespace Pulsarion::Shader
 
     Token Lexer::ReadComment()
     {
-        std::size_t start = m_Index;
-        while (m_Index < m_Source.size() && m_Source[m_Index] != '\n')
+        const std::size_t startIndex = m_Index;
+        const std::size_t startColumn = m_Column;
+
+        while (m_Index < m_Source.size() && (m_Source[m_Index] != '\n' || m_Source[m_Index] != '\r'))
         {
             (void)NextChar();
         }
+
         if (m_Index >= m_Source.size())
-        {
-            return Token(TokenType::Comment, m_Source.substr(start, m_Index - start), m_Line, m_Column, m_Index);
-        }
+            return {TokenType::Comment, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
         // Otherwise call NewLine() and return the comment.
-        size_t end = m_Index; // So we don't include the newline in the comment.
+        const size_t end = m_Index; // So we don't include the newline in the comment.
         NewLine();
-        return Token(TokenType::Comment, m_Source.substr(start, end - start), m_Line, m_Column, m_Index);
+        return {TokenType::Comment, m_Source.substr(startIndex, end - startIndex), m_Line, startColumn, startIndex};
     }
 
     Token Lexer::ReadChar()
     {
         // Should be called after the ' character has been read.
-        std::size_t start = m_Index;
-        std::size_t column = m_Column;
+        const std::size_t startIndex = m_Index;
+        const std::size_t startColumn = m_Column;
         char c = NextChar();
         if (c == '\\')
         {
@@ -342,31 +348,30 @@ namespace Pulsarion::Shader
                 c = '\0';
                 break;
             default:
-                return Token(TokenType::InvalidChar, m_Source.substr(start, m_Index - start),m_Line, column, m_Index);
+                return {TokenType::InvalidChar, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             }
         }
 
         // Read the closing ' character.
         if (NextChar() != '\'')
         {
-            return Token(TokenType::InvalidChar, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::InvalidChar, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         // Convert the character to a string and return it.
-        std::string str = "";
+        std::string str;
         str += c;
-        return Token(TokenType::Char, str, m_Line, column, m_Index);
+        return {TokenType::Char, str, m_Line, startColumn, startIndex};
     }
 
     Token Lexer::ReadNumber()
     {
         // The starting character is index - 1 because we already read the first character.
-        std::size_t start = m_Index - 1;
-        std::size_t column = m_Column - 1;
-        if (m_Source[start] == '0')
+        const std::size_t startIndex = m_Index - 1;
+        const std::size_t startColumn = m_Column - 1;
+        if (m_Source[startIndex] == '0')
         {
-            char c = CurrentChar();
-            switch (c)
+            switch (CurrentChar())
             {
             case 'x':
             case 'X':
@@ -376,7 +381,7 @@ namespace Pulsarion::Shader
                 {
                     (void)NextChar();
                 }
-                return Token(TokenType::HexNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+                return {TokenType::HexNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             case 'b':
             case 'B':
                 // Binary number
@@ -385,7 +390,7 @@ namespace Pulsarion::Shader
                 {
                     (void)NextChar();
                 }
-                return Token(TokenType::BinaryNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+                return {TokenType::BinaryNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             case 'o':
             case 'O':
                 // Octal number
@@ -394,7 +399,9 @@ namespace Pulsarion::Shader
                 {
                     (void)NextChar();
                 }
-                return Token(TokenType::OctalNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+                return {TokenType::OctalNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            default:
+                break;
             }
         }
 
@@ -407,57 +414,50 @@ namespace Pulsarion::Shader
             if (CurrentChar() == '.')
             {
                 if (hasDecimal)
-                {
-                    return Token(TokenType::InvalidNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
-                }
+                    return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
                 hasDecimal = true;
             }
             if (CurrentChar() == 'e' || CurrentChar() == 'E')
             {
                 if (hasExponent)
-                {
-                    return Token(TokenType::InvalidNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
-                }
+                    return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
                 hasExponent = true;
                 // The next character can be '+' or '-'.
                 (void)NextChar();
                 if (CurrentChar() == '+' || CurrentChar() == '-')
-                {
                     (void)NextChar();
-                }
             }
             (void)NextChar();
         }
         // If ended with 'e' or 'E' then it is invalid.
         if (m_Source[m_Index - 1] == 'e' || m_Source[m_Index - 1] == 'E')
         {
-            return Token(TokenType::InvalidNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
-        if (m_Index >= m_Source.size())
-        {
-            // Broken because EOF
-            return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
-        }
+        if (m_Index >= m_Source.size()) // Broken because EOF
+            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
 
         // It could end with f, F, d, D, l, L, u, U, ul, UL, lu, LU, ll, LL, or ull, ULL.
 
         if (CurrentChar() == 'f' || CurrentChar() == 'F')
         {
             (void)NextChar();
-            return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         if (CurrentChar() == 'd' || CurrentChar() == 'D')
         {
             (void)NextChar();
-            return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         if (CurrentChar() == 'l' || CurrentChar() == 'L')
         {
             NextChar();
-            return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         if (CurrentChar() == 'u' || CurrentChar() == 'U')
@@ -469,39 +469,37 @@ namespace Pulsarion::Shader
                 if (CurrentChar() == 'l' || CurrentChar() == 'L')
                 {
                     NextChar();
-                    return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+                    return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
                 }
-                return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+                return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             }
-            return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         // Otherwise it is a valid number, unless it is followed by alpha character.
         if (IsIdentifierStart(CurrentChar()))
-        {
-            return Token(TokenType::InvalidNumber, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
-        }
-        return Token(TokenType::Number, m_Source.substr(start, m_Index - start), m_Line, column, m_Index);
+            return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
+        return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
     }
 
     Token Lexer::ReadIdentifier()
     {
-        std::size_t start = m_Index - 1;
-        std::size_t column = m_Column - 1;
+        std::size_t startIndex = m_Index - 1;
+        std::size_t startColumn = m_Column - 1;
         while (m_Index < m_Source.size() && (IsIdentifierStart(CurrentChar()) || IsDigit(CurrentChar())))
         {
             (void)NextChar();
         }
 
-        std::string identifier = m_Source.substr(start, m_Index - start);
+        std::string identifier = m_Source.substr(startIndex, m_Index - startIndex);
 
         // Check if it is a keyword.
-        auto it = LiteralTokens.find(identifier);
+        const auto it = LiteralTokens.find(identifier);
         if (it != LiteralTokens.end())
-        {
-            return Token(it->second, identifier, m_Line, column, m_Index);
-        }
+            return {it->second, identifier, m_Line, startColumn, startIndex};
 
-        return Token(TokenType::Identifier, identifier, m_Line, column, m_Index);
+
+        return {TokenType::Identifier, identifier, m_Line, startColumn, startIndex};
     };
 }

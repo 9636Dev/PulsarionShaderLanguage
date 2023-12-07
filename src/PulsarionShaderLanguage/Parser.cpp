@@ -16,190 +16,165 @@ namespace Pulsarion::Shader
 
     std::optional<SyntaxNode> Parser::Parse()
     {
-        return ParseScope();
+        /// === Parse ===
+        /// Scope (Parsed - it will parse the whole file, and return a ScopeNode)
+        /// EOF (Not consumed)
+        auto result = ParseScope();
+        // We make sure it parsed the whole file, if it didn't we return nullopt.
+        if (PeekToken().Type != TokenType::EndOfFile)
+        {
+            m_Errors.push_back(ErrorInfo{ "Unexpected Token", "", PeekToken().Line, PeekToken().Column });
+            return std::nullopt;
+        }
+        return result;
     }
 
     std::optional<SyntaxNode> Parser::ParseScope()
     {
+         // === ParseScope ===
+        // { (Ignored - shouldn't be passed into ParseScope)
+        // Statements ( Parsed - using recursive descent )
+        // } (Consumed - it consumed this and returns)
+
         std::vector<SyntaxNode> children;
-        std::size_t start = PeekToken().Index;
 
         // We parse each statement, they should automatically consume the tokens needed, we just have to check for scope changes after each statement.
         // If we encounter a scope increase, we throw an error, this is caused by missing symbols and therefore the closing brace is missing or invalid.
         bool breakLoop = false;
-        Token token;
-        do {
-            token = ReadToken();
-            if (token.Type == TokenType::EndOfFile)
-                break; // We reached the end of the file, we can stop parsing.
+        Token token = PeekToken();
+        std::size_t startIndex = token.Index;
+        while (token.Type != TokenType::EndOfFile && !breakLoop)
+        {
             switch (token.Type)
             {
-            case TokenType::LeftBrace: {
-                m_ScopeStack.push(token);
-                auto result = ParseScope(); // The opening bracket is automatically consumed when we called 'NextToken' in the beginning of the loop.
-                if (result.has_value())
-                    children.push_back(result.value());
-                else
-                    return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
-                break;
-            }
-            case TokenType::RightBrace: {
-                if (m_ScopeStack.empty())
-                {
-                    m_Errors.push_back(ErrorInfo{ "Unexpected '}'", "", token.Line, token.Column });
-                    return std::nullopt;
-                }
-                else
-                {
-                    if (m_ScopeStack.top().Type != TokenType::LeftBrace)
-                    {
-                        m_Errors.push_back(ErrorInfo{ "Unexpected '}' (Mismatched Closing Delimiter)", "", token.Line, token.Column });
+                case TokenType::LeftBrace: {
+                    ConsumeToken(1);
+                    const auto result = ParseScope();
+                    if (!result.has_value())
                         return std::nullopt;
-                    }
-                    m_ScopeStack.pop();
-                    return SyntaxNode(NodeDescriptor(NodeType::ScopeNode, start, PeekToken().Index), children);
-                }
-                break;
-            }
-            default:
-                std::size_t currentScope = m_ScopeStack.size();
-                Backtrack(1);
-                auto result = ParseStatement();
-                if (result.has_value())
-                {
                     children.push_back(result.value());
-                    if (currentScope != m_ScopeStack.size() && PeekBackToken().Type == TokenType::RightBrace) // The token should be changed by the ParseStatement function, so we can check it here.
-                        breakLoop = true; // We just break out of the loop, because the ParseStatement function already consumed the closing brace.
                     break;
                 }
-                else
-                    return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
+                case TokenType::RightBrace: {
+                    ConsumeToken(1);
+                    breakLoop = true;
+                    break;
+                }
+                default: {
+                    const auto result = ParseStatement();
+                    if (!result.has_value())
+                        return std::nullopt;
+                    children.push_back(result.value());
+                    break;
+                }
             }
-        } while (!m_Lexer.IsEnd() && !breakLoop);
 
-        if (m_Lexer.IsEnd() && !m_ScopeStack.empty())
-        {
-            m_Errors.push_back(ErrorInfo{ "Unexpected End of File (Missing Closing Delimiter)", "", token.Line, token.Column });
-            return std::nullopt;
+            // We peek the next token
+            token = PeekToken();
         }
 
-        return SyntaxNode(NodeDescriptor(NodeType::ScopeNode, start, PeekToken().Index), children);
+        // The token is the next token already, so we don't need to + 1 to the end, as it is exclusive.
+        return SyntaxNode(NodeDescriptor(NodeType::ScopeNode, startIndex, token.Index), children);
     }
 
     std::optional<SyntaxNode> Parser::ParseStatement()
     {
-        std::size_t start = PeekToken().Index;
+        Token token = PeekToken();
+        std::size_t startIndex = token.Index;
         std::vector<SyntaxNode> children;
-        Token token = ReadToken();
-        bool breakLoop = false;
-        while (token.Type != TokenType::Semicolon && token.Type != TokenType::EndOfFile)
+        std::optional<SyntaxNode> result;
+
+        while (IsValidStatementToken(token))
         {
-            switch (token.Type)
-			{
-                case TokenType::LeftBrace: {
-                    m_ScopeStack.push(token);
-                    auto result = ParseScope();
-                    if (result.has_value())
-                    {
-                        children.push_back(result.value());
-                        breakLoop = true;
-                        break;
-                    }
-                    else
-                        return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
-                }
-                case TokenType::RightBrace: {
-                    if (m_ScopeStack.empty())
-                    {
-                        m_Errors.push_back(ErrorInfo{ "Unexpected '}'", "", token.Line, token.Column });
-                        return std::nullopt;
-                    }
-                    if (m_ScopeStack.top().Type != TokenType::LeftBrace)
-                    {
-                        m_Errors.push_back(ErrorInfo{ "Unexpected '}' (Mismatched Closing Delimiter)", "", token.Line, token.Column });
-                        return std::nullopt;
-                    }
-                    m_ScopeStack.pop();
-                    breakLoop = true;
-                    break; // We exit the loop so it returns normally.
-                }
-                default: {
-                    // We backtrack one token, because we don't want to consume the first token of the expression.
-                    Backtrack(1);
-                    auto result = ParseExpression();
-                    if (result.has_value())
-                        children.push_back(result.value());
-                    else
-                        return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
-                    break;
-                }
+            result = ParseStatementKeyword();
+            if (result.has_value())
+            {
+                children.push_back(result.value());
+                break;
             }
 
-            if (breakLoop)
-				break;
-            token = ReadToken();
+            result = ParseExpression();
+            if (!result.has_value())
+                return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
+            children.push_back(result.value());
+
+            token = PeekToken();
         }
 
-        switch (token.Type)
-		{
-        case TokenType::EndOfFile:
-            m_Errors.push_back(ErrorInfo{ "Unexpected End of File (Missing Semicolon)", "", token.Line,     token.Column });
-            return std::nullopt;
-        default:
-            break;
+        // If it is a semicolon then we have to consume it and add a child node.
+        if (token.Type == TokenType::Semicolon)
+        {
+            ConsumeToken(1);
+            children.push_back(SyntaxNode(NodeDescriptor(NodeType::TokenNode, token.Index, token.Index, token), {}));
         }
 
-        return SyntaxNode(NodeDescriptor(NodeType::StatementNode, start, PeekToken().Index), children);
+        // The parent function will handle scopes and EOF.
+        return SyntaxNode(NodeDescriptor(NodeType::StatementNode, startIndex, PeekToken().Index), children);
     }
 
     std::optional<SyntaxNode> Parser::ParseExpression()
 	{
-
+        bool breakLoop = false;
 		std::vector<SyntaxNode> children;
-		std::size_t start = PeekToken().Index;
+        Token token = PeekToken();
+		std::size_t start = token.Index;
 
-        Token token = ReadToken();
         std::optional<SyntaxNode> result;
-        while (IsValidExpressionToken(token))
+        while (IsValidExpressionToken(token) && !breakLoop)
         {
-            Backtrack(1); // We backtrack one token, because we don't want to consume the first token of the expression.
+            // We don't have to account for scopes and semi-colons, because they are not valid ExpressionTokens.
+            switch (token.Type)
+            {
+            case TokenType::LeftParenthesis:
+                ConsumeToken(); // We have to manually consume the token;
+                result = ParseExpression();
+                if (result.has_value())
+                {
+                    children.push_back(result.value());
+                    break;
+                }
+                return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
+            case TokenType::RightParenthesis:
+                breakLoop = true; // We don't consume the token, because it is not part of this expression.
+                break;
+            default:
+                result = ParseSubExpression();
+                if (result.has_value())
+                {
+                    children.push_back(result.value()); // It should automatically consume the token.
+                    break;
+                }
+                // Currently the ParseSubExpression function will never fail, so we don't have to check for errors.
+                PULSARION_CORE_LOG_FATAL("ParseSubExpression failed!");
+                std::abort(); // This is fatal and unrecoverable, as it should never fail.
+            }
 
-            result = ParseLiteral();
-            if (result.has_value())
-                return result;
-
-            result = ParseIdentifier();
-            if (result.has_value())
-                return result; // AN identifier is a valid expression, so we return it.
-
-            (void)ReadToken(); // We consume the token, because we want to continue parsing.
-            children.push_back(SyntaxNode(NodeDescriptor(NodeType::TokenNode, PeekToken().Index, PeekToken().Index, token), {}));
-
-            token = ReadToken();
+            token = PeekToken();
         }
 
-        switch (token.Type)
-		{
-		case TokenType::Semicolon:
-            Backtrack(1); // We backtrack one token, because we don't want to consume the semicolon.
-            children.push_back(SyntaxNode(NodeDescriptor(NodeType::TokenNode, PeekToken().Index, PeekToken().Index, token), {}));
-            break;
-        default:
-            // We backtrack one token and have the parent function deal with the token.
-            Backtrack(1);
-			break;
-        }
-
-        // For now we use a BinaryOperatorNode, but we will change it later to the proper node type.
-        return SyntaxNode(NodeDescriptor(NodeType::BinaryOperatorNode, start, PeekToken().Index), children);
+        return SyntaxNode(NodeDescriptor(NodeType::ExpressionNode, start, token.Index), children);
 	}
 
-    std::optional<SyntaxNode> Parser::ParseExpressionBacktrack()
+    std::optional<SyntaxNode> Parser::ParseSubExpression()
     {
-        std::size_t currentBacktrackIndex = m_CurrentTokenIndex;
-        auto result = ParseExpression();
-        m_CurrentTokenIndex = currentBacktrackIndex;
-        return result;
+        // This function is meant to only parse one construct of an expression, such as a function call, a binary operation, etc.
+        Token token = PeekToken();
+        // We don't have to account for parenthesis, semicolons, or scopes, because they are already handled by the ParseExpression function.
+        auto result = ParseKeyword();
+        if (result.has_value())
+            return result;
+
+        result = ParseLiteral();
+        if (result.has_value())
+            return result;
+
+        result = ParseIdentifier();
+        if (result.has_value())
+            return result;
+
+        // For a placeholder we just return the token.
+        ConsumeToken(1);
+        return SyntaxNode(NodeDescriptor(NodeType::TokenNode, token.Index, token.Index, token), {});
     }
 
 
@@ -265,6 +240,90 @@ namespace Pulsarion::Shader
             return std::nullopt;
         }
     }
+
+    std::optional<SyntaxNode> Parser::ParseKeyword()
+    {
+        Token token = ReadToken();
+        switch (token.Type)
+        {
+            default: // We currently don't have any expression keywords
+                Backtrack(1); // We backtrack one token, because we don't want to consume the token.
+                return std::nullopt;
+        }
+    }
+
+    std::optional<SyntaxNode> Parser::ParseStatementKeyword()
+    {
+        Token token = ReadToken();
+        switch (token.Type)
+        {
+            case TokenType::If: {
+                // We to try to read left parenthesis, if it fails we backtrack and return nullopt.
+                if (ReadToken().Type != TokenType::LeftParenthesis)
+                {
+                    Backtrack(1);
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'if' (Missing Left Parenthesis)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                auto expression = ParseExpression(); // We try to parse the expression inside the parenthesis.
+                if (!expression.has_value())
+                {
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'if' (Missing Condition)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                // We to try to read right parenthesis, if it fails we backtrack and return nullopt.
+                if (ReadToken().Type != TokenType::RightParenthesis)
+                {
+                    Backtrack(1);
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'if' (Missing Right Parenthesis)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                std::optional<SyntaxNode> result;
+                if (PeekToken().Type == TokenType::LeftBrace)
+                    result = ParseScope();
+                else
+                    result = ParseStatement();
+
+                if (result.has_value())
+                    return SyntaxNode(NodeDescriptor(NodeType::IfNode, token.Index, token.Index, token), { expression.value(), result.value() });
+
+                m_Errors.push_back(ErrorInfo{ "Unexpected 'if' (Missing Statement)", "", token.Line, token.Column });
+                return std::nullopt;
+            }
+
+            default:
+                Backtrack(1); // We backtrack one token, because we don't want to consume the token.
+                return std::nullopt;
+        }
+        /*        }
+        case TokenType::Else: {
+            auto result = ParseStatement();
+            if (result.has_value())
+                return SyntaxNode(NodeDescriptor(NodeType::ElseNode, token.Index, token.Index, token), { result.value() });
+
+            m_Errors.push_back(ErrorInfo{ "Unexpected 'else' (Missing Statement)", "", token.Line, token.Column });
+            return std::nullopt;
+
+        }
+        case TokenType::While:
+            // TODO: Implement loop parsing, currently it only consumes the one token.
+            return SyntaxNode(NodeDescriptor(NodeType::WhileNode, token.Index, token.Index, token), {});
+        case TokenType::For:
+            return SyntaxNode(NodeDescriptor(NodeType::ForNode, token.Index, token.Index, token), {});
+        case TokenType::Return:
+            return SyntaxNode(NodeDescriptor(NodeType::ReturnKeywordNode, token.Index, token.Index, token), {});
+        case TokenType::Break:
+            return SyntaxNode(NodeDescriptor(NodeType::BreakKeywordNode, token.Index, token.Index, token), {});
+        case TokenType::Continue:
+            return SyntaxNode(NodeDescriptor(NodeType::ContinueKeywordNode, token.Index, token.Index, token), {});
+        case TokenType::Case:
+            return SyntaxNode(NodeDescriptor(NodeType::CaseKeywordNode, token.Index, token.Index, token), {});
+        */
+    }
+
 
     void Parser::ClearBacktrack()
     {
@@ -334,17 +393,6 @@ namespace Pulsarion::Shader
         return m_TokensRead[requiredIndex];
 	}
 
-    Token Parser::PeekBackToken(std::size_t n)
-    {
-		if (m_CurrentTokenIndex < n)
-        {
-			m_Errors.push_back(ErrorInfo{ "PeekBackToken Error: Tried to peek back more tokens than read", "", 0, 0 });
-            return {};
-		}
-
-        return m_TokensRead[m_CurrentTokenIndex - n];
-    }
-
     void Parser::ConsumeToken(std::size_t n)
     {
         if (m_CurrentTokenIndex + n > m_TokensRead.size())
@@ -359,17 +407,31 @@ namespace Pulsarion::Shader
 		m_CurrentTokenIndex += n;
 	}
 
+    bool Parser::IsValidStatementToken(const Token& token)
+    {
+        switch (token.Type)
+        {
+            case TokenType::EndOfFile:
+            case TokenType::Semicolon:
+            case TokenType::LeftBrace:
+            case TokenType::RightBrace:
+                return false;
+            default:
+                return true;
+        }
+    }
+
     bool Parser::IsValidExpressionToken(const Token& token)
     {
         switch (token.Type)
         {
-        case TokenType::EndOfFile:
-        case TokenType::LeftBrace:
-        case TokenType::RightBrace:
-        case TokenType::Semicolon:
-			return false;
-        default:
-            return true;
+            case TokenType::EndOfFile:
+            case TokenType::LeftBrace:
+            case TokenType::RightBrace:
+            case TokenType::Semicolon:
+			    return false;
+            default:
+                return true;
         }
     }
 }

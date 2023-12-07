@@ -12,13 +12,13 @@ namespace Pulsarion::Shader
     class PULSARION_SHADER_LANGUAGE_API Lexer
     {
     public:
-        Lexer(const std::string& source);
+        Lexer(std::string source);
         ~Lexer();
 
         Token NextToken();
 
-        inline std::size_t GetPosition() const { return m_Index; }
-        inline bool IsEnd() const { return m_Index >= m_Source.size(); }
+        std::size_t GetPosition() const { return m_Index; }
+        bool IsEnd() const { return m_Index >= m_Source.size(); }
 
         static bool IsDigit(char c);
         static bool IsIdentifierStart(char c);
@@ -35,11 +35,11 @@ namespace Pulsarion::Shader
         /// <summary>
         /// Returns the current character. This is implemeneted as source[index]
         /// </summary>
-        inline char CurrentChar();
+        inline char CurrentChar() const;
         /// <summary>
         /// Returns the next character without advancing the index. This is implemeneted as source[index + 1]
         /// </summary>
-        inline char PeekChar();
+        inline char PeekChar() const;
 
         Token ReadNumber();
         Token ReadChar();
