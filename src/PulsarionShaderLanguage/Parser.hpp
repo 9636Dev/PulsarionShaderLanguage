@@ -28,6 +28,7 @@ namespace Pulsarion::Shader
 
         static bool IsValidExpressionToken(const Token& token);
         static bool IsValidStatementToken(const Token& token);
+        static bool IsStatementKeyword(const Token& token);
     private:
         std::optional<SyntaxNode> ParseScope(); // { ... }
         std::optional<SyntaxNode> ParseStatement();

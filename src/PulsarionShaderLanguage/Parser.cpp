@@ -23,6 +23,7 @@ namespace Pulsarion::Shader
         // We make sure it parsed the whole file, if it didn't we return nullopt.
         if (PeekToken().Type != TokenType::EndOfFile)
         {
+            // Currently this is generic, but we will add more specific errors later.
             m_Errors.push_back(ErrorInfo{ "Unexpected Token", "", PeekToken().Line, PeekToken().Column });
             return std::nullopt;
         }
@@ -101,11 +102,16 @@ namespace Pulsarion::Shader
             token = PeekToken();
         }
 
-        // If it is a semicolon then we have to consume it and add a child node.
-        if (token.Type == TokenType::Semicolon)
+        // The proceeding token is the next token already
+        // We have to check if the token is a semicolon.
+        switch (token.Type)
         {
-            ConsumeToken(1);
-            children.push_back(SyntaxNode(NodeDescriptor(NodeType::TokenNode, token.Index, token.Index, token), {}));
+            case TokenType::Semicolon: {
+                //// If it is a semicolon then we have to consume it and add a child node.
+                ConsumeToken(1);
+                children.push_back(SyntaxNode(NodeDescriptor(NodeType::TokenNode, token.Index, token.Index, token), {}));
+            }
+
         }
 
         // The parent function will handle scopes and EOF.
@@ -139,14 +145,11 @@ namespace Pulsarion::Shader
                 break;
             default:
                 result = ParseSubExpression();
-                if (result.has_value())
-                {
-                    children.push_back(result.value()); // It should automatically consume the token.
-                    break;
-                }
-                // Currently the ParseSubExpression function will never fail, so we don't have to check for errors.
-                PULSARION_CORE_LOG_FATAL("ParseSubExpression failed!");
-                std::abort(); // This is fatal and unrecoverable, as it should never fail.
+                if (!result.has_value())
+                    return std::nullopt; // It only returns nullopt when it fails, so we propagate the error.
+
+                children.push_back(result.value()); // It should automatically consume the token.
+                break;
             }
 
             token = PeekToken();
@@ -160,6 +163,15 @@ namespace Pulsarion::Shader
         // This function is meant to only parse one construct of an expression, such as a function call, a binary operation, etc.
         Token token = PeekToken();
         // We don't have to account for parenthesis, semicolons, or scopes, because they are already handled by the ParseExpression function.
+
+        // If the token is a statement keyword, we return nullopt, because it is not a valid expression token.
+        if (IsStatementKeyword(token))
+        {
+            m_Errors.push_back(ErrorInfo{ "Unexpected Keyword", "", token.Line, token.Column });
+            return std::nullopt;
+        }
+
+        // We try to parse a keyword, if it succeeds we return the result.
         auto result = ParseKeyword();
         if (result.has_value())
             return result;
@@ -325,6 +337,11 @@ namespace Pulsarion::Shader
     }
 
 
+    // ================================
+    // End of main parsing functions
+    // ================================
+
+
     void Parser::ClearBacktrack()
     {
         m_TokensRead.clear();
@@ -432,6 +449,24 @@ namespace Pulsarion::Shader
 			    return false;
             default:
                 return true;
+        }
+    }
+
+    bool Parser::IsStatementKeyword(const Token& token)
+    {
+        switch (token.Type)
+        {
+            case TokenType::If:
+            case TokenType::Else:
+            case TokenType::While:
+            case TokenType::For:
+            case TokenType::Return:
+            case TokenType::Break:
+            case TokenType::Continue:
+            case TokenType::Case:
+                return true;
+            default:
+                return false;
         }
     }
 }
