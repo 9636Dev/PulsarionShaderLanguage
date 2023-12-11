@@ -111,7 +111,8 @@ namespace Pulsarion::Shader
                 ConsumeToken(1);
                 children.push_back(SyntaxNode(NodeDescriptor(NodeType::TokenNode, token.Index, token.Index, token), {}));
             }
-
+            default:
+                break;
         }
 
         // The parent function will handle scopes and EOF.
@@ -258,6 +259,9 @@ namespace Pulsarion::Shader
         Token token = ReadToken();
         switch (token.Type)
         {
+            case TokenType::True:
+            case TokenType::False:
+                return SyntaxNode(NodeDescriptor(NodeType::LiteralNode, token.Index, token.Index, token), {});
             default: // We currently don't have any expression keywords
                 Backtrack(1); // We backtrack one token, because we don't want to consume the token.
                 return std::nullopt;
@@ -305,35 +309,60 @@ namespace Pulsarion::Shader
                 m_Errors.push_back(ErrorInfo{ "Unexpected 'if' (Missing Statement)", "", token.Line, token.Column });
                 return std::nullopt;
             }
+            case TokenType::Else: {
+                std::optional<SyntaxNode> result;
+                if (PeekToken().Type == TokenType::LeftBrace)
+                    result = ParseScope();
+                else
+                    result = ParseStatement(); // This should handle the 'else if' case as well.
+
+                if (result.has_value())
+                    return SyntaxNode(NodeDescriptor(NodeType::ElseNode, token.Index, token.Index, token), { result.value() });
+
+                m_Errors.push_back(ErrorInfo{ "Unexpected 'else' (Missing Statement)", "", token.Line, token.Column });
+                return std::nullopt;
+            }
+            case TokenType::While: {
+                // We to try to read left parenthesis, if it fails we backtrack and return nullopt.
+                if (ReadToken().Type != TokenType::LeftParenthesis)
+                {
+                    Backtrack(1);
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'while' (Missing Left Parenthesis)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                auto expression = ParseExpression(); // We try to parse the expression inside the parenthesis.
+                if (!expression.has_value())
+                {
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'while' (Missing Condition)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                // We to try to read right parenthesis, if it fails we backtrack and return nullopt.
+                if (ReadToken().Type != TokenType::RightParenthesis)
+                {
+                    Backtrack(1);
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'while' (Missing Right Parenthesis)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                std::optional<SyntaxNode> result;
+                if (PeekToken().Type == TokenType::LeftBrace)
+                    result = ParseScope();
+                else
+                    result = ParseStatement();
+
+                if (result.has_value())
+                    return SyntaxNode(NodeDescriptor(NodeType::WhileNode, token.Index, token.Index, token), { expression.value(), result.value() });
+
+                m_Errors.push_back(ErrorInfo{ "Unexpected 'while' (Missing Statement)", "", token.Line, token.Column });
+                return std::nullopt;
+            }
 
             default:
                 Backtrack(1); // We backtrack one token, because we don't want to consume the token.
                 return std::nullopt;
         }
-        /*        }
-        case TokenType::Else: {
-            auto result = ParseStatement();
-            if (result.has_value())
-                return SyntaxNode(NodeDescriptor(NodeType::ElseNode, token.Index, token.Index, token), { result.value() });
-
-            m_Errors.push_back(ErrorInfo{ "Unexpected 'else' (Missing Statement)", "", token.Line, token.Column });
-            return std::nullopt;
-
-        }
-        case TokenType::While:
-            // TODO: Implement loop parsing, currently it only consumes the one token.
-            return SyntaxNode(NodeDescriptor(NodeType::WhileNode, token.Index, token.Index, token), {});
-        case TokenType::For:
-            return SyntaxNode(NodeDescriptor(NodeType::ForNode, token.Index, token.Index, token), {});
-        case TokenType::Return:
-            return SyntaxNode(NodeDescriptor(NodeType::ReturnKeywordNode, token.Index, token.Index, token), {});
-        case TokenType::Break:
-            return SyntaxNode(NodeDescriptor(NodeType::BreakKeywordNode, token.Index, token.Index, token), {});
-        case TokenType::Continue:
-            return SyntaxNode(NodeDescriptor(NodeType::ContinueKeywordNode, token.Index, token.Index, token), {});
-        case TokenType::Case:
-            return SyntaxNode(NodeDescriptor(NodeType::CaseKeywordNode, token.Index, token.Index, token), {});
-        */
     }
 
 

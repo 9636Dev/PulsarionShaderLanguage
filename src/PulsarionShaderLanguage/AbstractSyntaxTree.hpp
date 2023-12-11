@@ -35,6 +35,7 @@ namespace Pulsarion::Shader
         UsingKeywordNode, // using a::b;
         NamespaceKeywordNode, // namespace a { ... }
 
+        AnnotationNode, // [[ ... ]]
         AssignmentNode, // a = b
         BinaryOperatorNode, // a + b
     };
