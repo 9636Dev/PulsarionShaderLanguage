@@ -20,7 +20,7 @@ namespace Pulsarion::Shader
     class PULSARION_SHADER_LANGUAGE_API Parser
     {
     public:
-        Parser(Lexer&& lexer);
+        explicit Parser(Lexer&& lexer);
         ~Parser() = default;
 
         std::optional<SyntaxNode> Parse();

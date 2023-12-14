@@ -5,7 +5,7 @@
 namespace Pulsarion::Shader
 {
     Parser::Parser(Lexer&& lexer)
-        : m_Lexer(std::move(lexer)), m_ScopeStack(), m_Errors(), m_TokensRead(), m_CurrentTokenIndex(0)
+        : m_Lexer(lexer), m_CurrentTokenIndex(0)
     {
     }
 
@@ -299,7 +299,10 @@ namespace Pulsarion::Shader
 
                 std::optional<SyntaxNode> result;
                 if (PeekToken().Type == TokenType::LeftBrace)
+                {
+                    ConsumeToken(1); // We consume the left brace, because ParseScope expects it to be consumed.
                     result = ParseScope();
+                }
                 else
                     result = ParseStatement();
 
@@ -358,7 +361,24 @@ namespace Pulsarion::Shader
                 m_Errors.push_back(ErrorInfo{ "Unexpected 'while' (Missing Statement)", "", token.Line, token.Column });
                 return std::nullopt;
             }
+            case TokenType::Return: {
+                auto result = ParseExpression();
 
+                // We check for a semicolon regardless of the result
+                if (PeekToken().Type != TokenType::Semicolon)
+                {
+                    m_Errors.push_back(ErrorInfo{ "Unexpected 'return' (Missing Semicolon)", "", token.Line, token.Column });
+                    return std::nullopt;
+                }
+
+                // We store a syntaxnode of the semicolon as one of the children.
+                auto semicolon = SyntaxNode(NodeDescriptor(NodeType::TokenNode, token.Index, token.Index, ReadToken()), {});
+                // Return can also be used without an expression, so we don't return nullopt here.
+                if (!result.has_value())
+                    return SyntaxNode(NodeDescriptor(NodeType::ReturnKeywordNode, token.Index, token.Index, token), { semicolon });
+
+                return SyntaxNode(NodeDescriptor(NodeType::ReturnKeywordNode, token.Index, token.Index, token), { result.value(), semicolon });
+            }
             default:
                 Backtrack(1); // We backtrack one token, because we don't want to consume the token.
                 return std::nullopt;
@@ -404,7 +424,7 @@ namespace Pulsarion::Shader
             case TokenType::InvalidChar:
             case TokenType::InvalidNumber:
                 m_Errors.push_back(ErrorInfo{ "Invalid Token", "", token.Line, token.Column });
-                return Token(TokenType::EndOfFile, "", token.Line, token.Column, token.Index); // This will produce a false EOF error, but we do it like this for now.
+                return {TokenType::EndOfFile, "", token.Line, token.Column, token.Index}; // This will produce a false EOF error, but we do it like this for now.
             default:
                 break;
             }
