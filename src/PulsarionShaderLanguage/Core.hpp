@@ -7,3 +7,13 @@
 #else
 	#define PULSARION_SHADER_LANGUAGE_API PULSARION_DLL_IMPORT
 #endif
+
+namespace Pulsarion::Shader
+{
+    enum class ErrorSeverity
+    {
+        Suggestion,
+        Warning,
+        Fatal
+    };
+}

@@ -4,56 +4,73 @@
 #include "Lexer.hpp"
 #include "AbstractSyntaxTree.hpp"
 
+#include <string>
 #include <optional>
 #include <stack>
 
 namespace Pulsarion::Shader
 {
-    struct ErrorInfo
+    /// <summary>
+    /// Represents a location in the source code.
+    /// </summary>
+    struct SourceLocation
     {
-        std::string Message;
-        std::string File;
+        /// <summary>
+        /// The line number.
+        /// </summary>
         std::size_t Line;
+
+        /// <summary>
+        /// The column number.
+        /// </summary>
         std::size_t Column;
 
-        ErrorInfo(std::string message, std::string file, std::size_t line, std::size_t column);
+        /// <summary>
+        /// The character index.
+        /// <summary>
+        std::size_t Index;
+
+        /// <summary>
+        /// Length of the source location.
+        /// </summary>
+        std::size_t Length;
+    };
+
+    /// <summary>
+    /// Represents a parser error.
+    /// </summary>
+    struct ParserError
+    {
+        SourceLocation Location;
+        ErrorSeverity Severity;
+        std::string Message;
+        /// <summary>
+        /// Sometimes errors are caused by other errors.
+        /// </summary>
+        std::optional<ParserError> Parent;
     };
 
     class PULSARION_SHADER_LANGUAGE_API Parser
     {
     public:
-        explicit Parser(Lexer&& lexer);
-        ~Parser() = default;
+        Parser(Lexer&& lexer);
+        ~Parser();
 
-        std::optional<SyntaxNode> Parse();
-        [[nodiscard]] const std::vector<ErrorInfo>& GetErrors() const;
+        Token PeekToken(std::size_t n = 0) const; // We look at the current token, which is the next token to be read.
+        Token ReadToken(); // We read the current token.
+        bool ConsumeToken(TokenType type); // We consume the current token if it is of the given type, doesn't consume the token if it fails.
+        void Backtrack(std::size_t n = 1); // We go back n tokens.
 
-        static bool IsValidExpressionToken(const Token& token);
-        static bool IsValidStatementToken(const Token& token);
-        static bool IsStatementKeyword(const Token& token);
-        static bool IsPartialBooleanExpression(const SyntaxNode& node);
     private:
-        std::optional<SyntaxNode> ParseScope(); // { ... }
-        std::optional<SyntaxNode> ParseStatement();
-        std::optional<SyntaxNode> ParseExpression();
-        std::optional<SyntaxNode> ParseBooleanExpression();
-        std::optional<SyntaxNode> ParseSubExpression();
+        struct ReadState
+        {
+            mutable std::vector<Token> ReadTokens;
+            std::size_t CurrentIndex;
 
-        std::optional<SyntaxNode> ParseIdentifier();
-        std::optional<SyntaxNode> ParseLiteral();
-        std::optional<SyntaxNode> ParseKeyword();
-        std::optional<SyntaxNode> ParseStatementKeyword();
+            ReadState() : ReadTokens(), CurrentIndex(0) {}
+        };
 
-        void ClearBacktrack();
-        void Backtrack(std::size_t n);
-        Token ReadToken();
-        const Token& PeekToken(std::size_t n = 0);
-        void ConsumeToken(std::size_t n = 1);
-
-        std::size_t m_CurrentTokenIndex;
-        std::vector<Token> m_TokensRead;
-        std::stack<Token> m_ScopeStack;
-        std::vector<ErrorInfo> m_Errors;
-        Lexer m_Lexer;
+        mutable Lexer m_Lexer; // We will take ownership of the lexer.
+        ReadState m_ReadState;
     };
 }
