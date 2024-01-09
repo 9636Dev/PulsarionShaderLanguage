@@ -300,7 +300,7 @@ namespace Pulsarion::Shader
         const std::size_t startIndex = m_Index;
         const std::size_t startColumn = m_Column;
 
-        while (m_Index < m_Source.size() && (m_Source[m_Index] != '\n' || m_Source[m_Index] != '\r'))
+        while (m_Index < m_Source.size() && (m_Source[m_Index] != '\n' && m_Source[m_Index] != '\r'))
         {
             (void)NextChar();
         }

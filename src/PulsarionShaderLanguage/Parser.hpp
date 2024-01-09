@@ -15,6 +15,8 @@ namespace Pulsarion::Shader
         std::string File;
         std::size_t Line;
         std::size_t Column;
+
+        ErrorInfo(std::string message, std::string file, std::size_t line, std::size_t column);
     };
 
     class PULSARION_SHADER_LANGUAGE_API Parser
@@ -29,10 +31,12 @@ namespace Pulsarion::Shader
         static bool IsValidExpressionToken(const Token& token);
         static bool IsValidStatementToken(const Token& token);
         static bool IsStatementKeyword(const Token& token);
+        static bool IsPartialBooleanExpression(const SyntaxNode& node);
     private:
         std::optional<SyntaxNode> ParseScope(); // { ... }
         std::optional<SyntaxNode> ParseStatement();
         std::optional<SyntaxNode> ParseExpression();
+        std::optional<SyntaxNode> ParseBooleanExpression();
         std::optional<SyntaxNode> ParseSubExpression();
 
         std::optional<SyntaxNode> ParseIdentifier();
