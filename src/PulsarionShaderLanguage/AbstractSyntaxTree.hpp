@@ -9,4 +9,18 @@
 
 namespace Pulsarion::Shader
 {
+    enum class NodeType
+    {
+        Scope,
+    };
+
+    struct PULSARION_SHADER_LANGUAGE_API SyntaxNode
+    {
+    public:
+
+        NodeType Type;
+        std::optional<Token> Content;
+        std::vector<SyntaxNode> Children;
+    };
+
 }

@@ -1,8 +1,10 @@
 #include "Token.hpp"
 
+#include <sstream>
+
 namespace Pulsarion::Shader
 {
-    std::string TokenToString(TokenType type)
+    std::string TokenTypeToString(TokenType type)
     {
         switch (type)
         {
@@ -82,6 +84,12 @@ namespace Pulsarion::Shader
             case TokenType::Namespace: return "Namespace";
             default: return "UnhandledTokenType";
         }
+    }
 
+    std::string Token::ToString() const
+    {
+        std::stringstream ss;
+        ss << TokenTypeToString(Type) << " '" << Value << "' " << Line << ":" << Column;
+        return ss.str();
     }
 }

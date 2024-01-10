@@ -89,9 +89,9 @@ namespace Pulsarion::Shader
         Namespace,
     };
 
-    PULSARION_SHADER_LANGUAGE_API std::string TokenToString(TokenType type);
+    PULSARION_SHADER_LANGUAGE_API std::string TokenTypeToString(TokenType type);
 
-    struct Token
+    struct PULSARION_SHADER_LANGUAGE_API Token
     {
         TokenType Type;
         std::string Value;
@@ -108,6 +108,8 @@ namespace Pulsarion::Shader
         {
 
         }
+
+        std::string ToString() const;
     };
 
 }
