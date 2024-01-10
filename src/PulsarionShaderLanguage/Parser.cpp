@@ -1,16 +1,96 @@
 #include "Parser.hpp"
+#include "AbstractSyntaxTree.hpp"
 
 namespace Pulsarion::Shader
 {
+    // Represents parsing state of a parser function
+    struct InternalParseState
+    {
+        std::vector<SyntaxNode> Nodes; // This is the child nodes of the current node
+        SourceLocation Location; // This is the location of the current node
+
+        InternalParseState(std::size_t start, std::size_t line, std::size_t column)
+            : Nodes(), Location(start, line, column, 0)
+        {
+        }
+
+        InternalParseState(Token token)
+            : Nodes(), Location(token.Index, token.Line, token.Column, 0)
+        {
+        }
+
+        SyntaxNode ToNode(NodeType type, std::size_t EndIndex, std::optional<Token> content = std::nullopt)
+        {
+            Location.Length = EndIndex - Location.Index;
+            return SyntaxNode(type, Location, content, Nodes);
+        }
+    };
+
     Parser::Parser(Lexer&& lexer)
         : m_Lexer(std::move(lexer)), m_ReadState()
     {
-
     }
 
     Parser::~Parser()
     {
         // We don't need to do anything yet
+    }
+
+    std::optional<SyntaxNode> Parser::Parse()
+    {
+        auto result = ParseScope();
+        if (!result)
+            return std::nullopt; // There should already be an error in the error list
+
+        // We check if we are at the end of the file, if not then there is an unexpected token '}'
+        if (PeekToken().Type != TokenType::EndOfFile)
+        {
+            AddError(ErrorSeverity::Fatal, "Unexpected token '}' at the end of the file", GetLocationFor(PeekToken()));
+            return std::nullopt;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Parses a scope. Doesn't consume the opening curly brace.
+    /// Stops when it reaches a closing curly brace and consumes it or reaches EOF.
+    std::optional<SyntaxNode> Parser::ParseScope(bool allowEOF)
+    {
+        // We assume that the last token was a left brace
+
+        Token token = PeekToken();
+        bool loopRunning = true;
+        InternalParseState state(token);
+
+        while (loopRunning)
+        {
+            switch (token.Type)
+            {
+            case TokenType::EndOfFile:
+                if (allowEOF)
+                {
+                    loopRunning = false;
+                    break;
+                }
+                // We don't break here, because we want to add an error
+                AddError(ErrorSeverity::Fatal, "Unexpected end of file while trying to find scope ending", GetLocationFor(token));
+                return std::nullopt;
+
+            case TokenType::RightBrace:
+                (void)ReadToken(); // Consume the right brace
+                loopRunning = false;
+                break;
+
+            default:
+                // TODO: Parse statements
+                state.Nodes.push_back(SyntaxNode(ReadToken())); // This is temporary
+            }
+
+            token = PeekToken();
+        }
+
+        return state.ToNode(NodeType::Scope, PeekToken().Index);
     }
 
     Token Parser::PeekToken(std::size_t n) const
@@ -23,9 +103,17 @@ namespace Pulsarion::Shader
         while (m_ReadState.ReadTokens.size() <= index)
         {
             tempToken = m_Lexer.NextToken();
-            if (tempToken.Type == TokenType::EndOfFile)
+            switch (tempToken.Type)
+            {
+            case TokenType::EndOfFile:
                 return tempToken;
-            m_ReadState.ReadTokens.push_back(tempToken);
+            case TokenType::Comment:
+            case TokenType::InlineComment:
+                continue;
+            default:
+                m_ReadState.ReadTokens.push_back(tempToken);
+            }
+
         }
 
         if (index >= m_ReadState.ReadTokens.size())

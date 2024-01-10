@@ -16,4 +16,36 @@ namespace Pulsarion::Shader
         Warning,
         Fatal
     };
+
+    /// <summary>
+    /// Represents a location in the source code.
+    /// </summary>
+    struct SourceLocation
+    {
+        /// <summary>
+        /// The line number.
+        /// </summary>
+        std::size_t Line;
+
+        /// <summary>
+        /// The column number.
+        /// </summary>
+        std::size_t Column;
+
+        /// <summary>
+        /// The character index.
+        /// <summary>
+        std::size_t Index;
+
+        /// <summary>
+        /// Length of the source location.
+        /// </summary>
+        std::size_t Length;
+
+        SourceLocation(std::size_t line, std::size_t column, std::size_t index, std::size_t length)
+            : Line(line), Column(column), Index(index), Length(length)
+        {
+        }
+    };
+
 }

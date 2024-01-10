@@ -5,22 +5,35 @@
 
 #include <vector>
 #include <optional>
-#include <sstream>
 
 namespace Pulsarion::Shader
 {
     enum class NodeType
     {
         Scope,
+        Token,
     };
+
+    PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);
 
     struct PULSARION_SHADER_LANGUAGE_API SyntaxNode
     {
-    public:
-
         NodeType Type;
         std::optional<Token> Content;
+        SourceLocation Location;
         std::vector<SyntaxNode> Children;
+
+        SyntaxNode(NodeType type, SourceLocation location, std::optional<Token> content = std::nullopt, std::vector<SyntaxNode> children = std::vector<SyntaxNode>())
+            : Type(type), Content(content), Location(location), Children(children)
+        {
+        }
+
+        explicit SyntaxNode(Token token)
+            : Type(NodeType::Token), Content(token), Location(token.Index, token.Line, token.Column, token.Value.size()), Children()
+        {
+        }
+
+        std::string ToString() const;
     };
 
 }
