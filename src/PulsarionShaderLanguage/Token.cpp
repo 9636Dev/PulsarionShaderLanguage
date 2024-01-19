@@ -89,7 +89,7 @@ namespace Pulsarion::Shader
     std::string Token::ToString() const
     {
         std::stringstream ss;
-        ss << TokenTypeToString(Type) << " '" << Value << "' " << Line << ":" << Column;
+        ss << TokenTypeToString(Type) << " '" << Value << "' " << Location.Line << ":" << Location.Column;
         return ss.str();
     }
 }

@@ -7,64 +7,120 @@
 #include <string>
 #include <optional>
 #include <list>
+#include <vector>
 
 namespace Pulsarion::Shader
 {
+
     /// <summary>
     /// Represents a parser error.
     /// </summary>
     struct ParserError
     {
+        enum class ErrorSource
+        {
+            Scope,
+            Statement,
+            Expression
+        };
+
         SourceLocation Location;
         ErrorSeverity Severity;
+        ErrorSource Source;
         std::string Message;
+        std::uint32_t ErrorFlagSet; // This is useful to clear only the errors that were caused by a specific error
 
-        ParserError(SourceLocation location, ErrorSeverity severity, std::string message)
-            : Location(location), Severity(severity), Message(message)
+        ParserError(SourceLocation location, ErrorSource source, ErrorSeverity severity, std::string message, std::uint32_t errorFlagSet)
+            : Location(location), Source(source), Severity(severity), Message(message), ErrorFlagSet(errorFlagSet)
         {
         }
     };
 
+
+    /// <summary>
+    /// A syntax parser for the Pulsarion Shader Language.
+    /// </summary>
     class PULSARION_SHADER_LANGUAGE_API Parser
     {
     public:
-        Parser(Lexer&& lexer);
-        ~Parser();
+    // =====================================================================================================================
+    // Boilerplate
+    // =====================================================================================================================
 
         /// <summary>
-        /// Parses the source code.
+        /// Creates a new parser from a lexer.
         /// </summary>
-        std::optional<SyntaxNode> Parse();
+        Parser(Lexer&& lexer);
+        ~Parser() = default;
+        Parser(const Parser&) = delete;
+        Parser(Parser&&) = delete;
+
+    // =====================================================================================================================
+    // Parsing
+    // =====================================================================================================================
+
+        struct ParseResult
+        {
+            std::optional<SyntaxNode> Root;
+            std::list<ParserError> Errors;
+            std::uint32_t ErrorFlags;
+            /// <summary>
+            /// Whether the parser recovered from an error.
+            /// If it was recovered, then the parser can continue parsing, but the error should be reported.
+            /// </summary>
+            bool WasRecovered;
+        };
+
+
+        /// <summary>
+        /// Parses the shader source code.
+        /// </summary>
+        ParseResult Parse();
+
+        /// <summary>
+        /// Parses a scope.
+        /// Does not expect an opening brace.
+        /// Expects a closing brace and consumes it. (Error 0x0000 0001 if not found)
+        /// </summary>
+        /// <returns>
+        /// ErrorFlags:
+        /// 0x0000 0001 - Missing closing brace
+        /// </returns>
+        ParseResult ParseScope();
 
     private:
-        // ================== Internal Structs ==================
-        struct ReadState
+        struct ErrorState
         {
-            mutable std::vector<Token> ReadTokens;
-            std::size_t CurrentIndex;
-
-            ReadState() : ReadTokens(), CurrentIndex(0) {}
+            std::list<ParserError> Errors;
         };
-        // ======================================================
 
-        // ================= Read Functions =================
-        Token PeekToken(std::size_t n = 0) const; // We look at the current token, which is the next token to be read.
-        Token ReadToken(); // We read the current token.
-        bool ConsumeToken(TokenType type); // We consume the current token if it is of the given type, doesn't consume the token if it fails.
-        void Backtrack(std::size_t n = 1); // We go back n tokens.
-        // ==================================================
 
-        // ================== Error Handling =================
-        SourceLocation GetLocationFor(const Token& token) const;
-        void AddError(ErrorSeverity severity, std::string message, SourceLocation loc);
-        ParserError PopError();
-        // ===================================================
+        struct LexerState
+        {
 
-        // ================== Parsing Functions ==================
-        std::optional<SyntaxNode> ParseScope(bool allowEOF = false);
+        public:
+            LexerState(class Lexer&& lexer)
+                : Lexer(std::move(lexer)), TokensRead(), CurrentTokenIndex(0), EndOfStreamIndex(0xFFFFFFFF) // An arbitrary large number
+            {
+            }
 
-        mutable Lexer m_Lexer; // We will take ownership of the lexer.
-        ReadState m_ReadState;
-        std::list<ParserError> m_Errors; // We use a linked list, because we will be adding and removing errors a lot. In the future we might handle errors asynchronously, so we need to be able to add and remove errors from the list without invalidating iterators.
+            Token Peek(std::size_t offset = 0);
+            Token Read();
+
+            ~LexerState() = default;
+            LexerState(const LexerState&) = delete;
+            LexerState(LexerState&&) = delete;
+
+        private:
+            void ReadTokens(std::size_t count);
+
+            Lexer Lexer;
+            std::vector<Token> TokensRead;
+            std::size_t CurrentTokenIndex;
+            std::size_t EndOfStreamIndex;
+        };
+
+        ErrorState m_ErrorState;
+        LexerState m_LexerState;
     };
 }

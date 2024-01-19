@@ -29,7 +29,7 @@ namespace Pulsarion::Shader
         }
 
         explicit SyntaxNode(Token token)
-            : Type(NodeType::Token), Content(token), Location(token.Index, token.Line, token.Column, token.Value.size()), Children()
+            : Type(NodeType::Token), Content(token), Location(token.Location), Children()
         {
         }
 
