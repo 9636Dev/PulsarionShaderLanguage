@@ -1,6 +1,7 @@
 #pragma once
 
 #include <PulsarionCore/Core.hpp>
+#include <PulsarionCore/Assert.hpp>
 
 #ifdef PULSARION_SHADER_LANGUAGE_BUILD_DLL
 	#define PULSARION_SHADER_LANGUAGE_API PULSARION_DLL_EXPORT

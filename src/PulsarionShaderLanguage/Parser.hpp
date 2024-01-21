@@ -17,6 +17,10 @@ namespace Pulsarion::Shader
     /// </summary>
     struct ParserError
     {
+        /// <summary>
+        /// The source location of the error, from within the parser.
+        /// Scope means the error was found by the scope parser, statement means the error was found by the statement parser, etc.
+        /// </summary>
         enum class ErrorSource
         {
             Scope,
@@ -79,21 +83,19 @@ namespace Pulsarion::Shader
 
         /// <summary>
         /// Parses a scope.
-        /// Does not expect an opening brace.
-        /// Expects a closing brace and consumes it. (Error 0x0000 0001 if not found)
+        /// Does not expect an opening brace, expects a closing brace and consumes it.
+        /// Errors:
+        /// 0x00000001 - Expected a closing brace (reached EOF without finding one).
+        /// 0x00000002 - More than one closing brace not found (Nested scopes are also missing closing braces).
         /// </summary>
-        /// <returns>
-        /// ErrorFlags:
-        /// 0x0000 0001 - Missing closing brace
-        /// </returns>
         ParseResult ParseScope();
 
     private:
+        struct InternalParseState;
         struct ErrorState
         {
             std::list<ParserError> Errors;
         };
-
 
         struct LexerState
         {
@@ -106,6 +108,8 @@ namespace Pulsarion::Shader
 
             Token Peek(std::size_t offset = 0);
             Token Read();
+            void Consume(std::size_t count = 1);
+            bool Consume(TokenType type);
 
             ~LexerState() = default;
             LexerState(const LexerState&) = delete;
