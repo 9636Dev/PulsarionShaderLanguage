@@ -126,7 +126,7 @@ namespace Pulsarion::Shader
                     {
                         // We return the result, since it is not a valid result
                         return result;
-                    } 
+                    }
 
                     // We add the scope to the children
                     state.AddChild(std::move(result.Root.value()));

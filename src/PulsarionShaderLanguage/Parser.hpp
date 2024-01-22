@@ -73,6 +73,11 @@ namespace Pulsarion::Shader
             /// If it was recovered, then the parser can continue parsing, but the error should be reported.
             /// </summary>
             bool WasRecovered;
+
+            ParseResult(std::optional<SyntaxNode> root, std::list<ParserError> errors, std::uint32_t errorFlags, bool wasRecovered = false)
+                : Root(root), Errors(errors), ErrorFlags(errorFlags), WasRecovered(wasRecovered)
+            {
+            }
         };
 
 
