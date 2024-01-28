@@ -11,7 +11,26 @@ namespace Pulsarion::Shader
     enum class NodeType
     {
         Scope,
+        Statement,
         Token,
+        NumericLiteral,
+        BooleanLiteral,
+        Identifier,
+        Namespace,
+        BooleanNegation,
+        NumericNegation,
+        NumericPreIncrement,
+        NumericPreDecrement,
+        NumericPostIncrement,
+        NumericPostDecrement,
+        NumericBitwiseNot,
+        NumericUnaryPlus,
+        BinaryBooleanOperation,
+        BinaryNumericOperation,
+        BinaryComparisonOperation,
+        ParenthesizedExpression,
+        FunctionCall,
+        ArrayIndex,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);
@@ -34,6 +53,11 @@ namespace Pulsarion::Shader
         }
 
         std::string ToString() const;
+
+        bool operator==(const SyntaxNode& other) const
+        {
+            return Type == other.Type && Content == other.Content && Location == other.Location && Children == other.Children;
+        }
     };
 
 }

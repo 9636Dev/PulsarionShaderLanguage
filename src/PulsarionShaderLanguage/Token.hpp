@@ -113,6 +113,11 @@ namespace Pulsarion::Shader
         }
 
         std::string ToString() const;
+
+        bool operator==(const Token& other) const
+        {
+            return Type == other.Type && Value == other.Value;
+        }
     };
 
 }

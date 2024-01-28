@@ -9,6 +9,8 @@
 	#define PULSARION_SHADER_LANGUAGE_API PULSARION_DLL_IMPORT
 #endif
 
+#include <string>
+
 namespace Pulsarion::Shader
 {
     enum class ErrorSeverity
@@ -17,6 +19,8 @@ namespace Pulsarion::Shader
         Warning,
         Fatal
     };
+
+    PULSARION_SHADER_LANGUAGE_API std::string SeverityToString(ErrorSeverity severity);
 
     /// <summary>
     /// Represents a location in the source code.
@@ -46,6 +50,11 @@ namespace Pulsarion::Shader
         SourceLocation(std::size_t line, std::size_t column, std::size_t index, std::size_t length)
             : Line(line), Column(column), Index(index), Length(length)
         {
+        }
+
+        bool operator==(const SourceLocation& other) const
+        {
+            return Line == other.Line && Column == other.Column && Index == other.Index && Length == other.Length;
         }
     };
 

@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/Core.hpp
+    src/PulsarionShaderLanguage/Core.cpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.cpp
     src/PulsarionShaderLanguage/Token.hpp
@@ -13,8 +14,6 @@ set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/Lexer.cpp
     src/PulsarionShaderLanguage/Parser.hpp
     src/PulsarionShaderLanguage/Parser.cpp
-    src/PulsarionShaderLanguage/ContextFreeGrammar.hpp
-    src/PulsarionShaderLanguage/ContextFreeGrammar.cpp
     src/PulsarionShaderLanguage/AbstractSyntaxTree.hpp
     src/PulsarionShaderLanguage/AbstractSyntaxTree.cpp
 )

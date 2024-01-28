@@ -25,7 +25,8 @@ namespace Pulsarion::Shader
         {
             Scope,
             Statement,
-            Expression
+            Expression,
+            Identifier,
         };
 
         SourceLocation Location;
@@ -34,12 +35,11 @@ namespace Pulsarion::Shader
         std::string Message;
         std::uint32_t ErrorFlagSet; // This is useful to clear only the errors that were caused by a specific error
 
-        ParserError(SourceLocation location, ErrorSource source, ErrorSeverity severity, std::string message, std::uint32_t errorFlagSet)
+        ParserError(SourceLocation location, ErrorSource source, ErrorSeverity severity, std::string message, std::uint32_t errorFlagSet = 0u)
             : Location(location), Source(source), Severity(severity), Message(message), ErrorFlagSet(errorFlagSet)
         {
         }
     };
-
 
     /// <summary>
     /// A syntax parser for the Pulsarion Shader Language.
@@ -82,27 +82,94 @@ namespace Pulsarion::Shader
 
 
         /// <summary>
-        /// Parses the shader source code.
+        /// Parses the entire shader source code.
         /// </summary>
+        /// <returns>Result of the parse</returns>
         ParseResult Parse();
 
         /// <summary>
         /// Parses a scope.
-        /// Does not expect an opening brace, expects a closing brace and consumes it.
-        /// Errors:
-        /// 0x00000001 - Expected a closing brace (reached EOF without finding one).
+        /// Does not expect an opening brace, expects a closing brace and consumes it. 
+        /// Errors Codes:
+        /// 0x00000001 - Expected a closing brace (reached EOF without finding one, but still returns a result).
         /// 0x00000002 - More than one closing brace not found (Nested scopes are also missing closing braces).
         /// </summary>
+        /// <returns>The parse result, see function description for error codes</returns>
         ParseResult ParseScope();
+
+        /// <summary>
+        /// Parses a single statement. This is usually a variable declaration or a function call, or something between semicolons.
+        /// </summary>
+        /// <returns>The result of the statement parse</returns>
+        ParseResult ParseStatement();
+
+        /// <summary>
+        /// Parses a single expression.
+        /// </summary>
+        /// <returns>The result of the expression parse</returns>
+        ParseResult ParseExpression();
+
+        ParseResult ParseIdentifier();
+
+        // TOOD: Document Functions
+
+        struct ExpressionParseResult
+        {
+            enum class PrimType
+            {
+                Boolean,
+                Numeric,
+                Comparison,
+                Undetermined, // This is the case for function calls and variables
+                Failed, // This is the case for failed parses
+            };
+
+            PrimType Type;
+            std::optional<SyntaxNode> Root;
+            std::list<ParserError> Errors;
+            std::uint64_t ErrorFlags;
+
+            ExpressionParseResult(PrimType type, std::optional<SyntaxNode> root = std::nullopt, std::list<ParserError> errors = {}, std::uint64_t errorFlags = 0ull)
+                : Type(type), Root(root), Errors(errors), ErrorFlags(errorFlags)
+            {
+            }
+
+            bool IsBoolean() const { return Type == PrimType::Boolean || Type == PrimType::Comparison || Type == PrimType::Undetermined; }
+            bool IsNumeric() const { return Type == PrimType::Numeric || Type == PrimType::Undetermined; }
+            bool CanConvert(PrimType other) const
+            {
+                if (Type == PrimType::Failed || other == PrimType::Failed)
+                    return false;
+                if (Type == PrimType::Undetermined || other == PrimType::Undetermined)
+                    return true;
+                if (Type == PrimType::Comparison && other == PrimType::Boolean || other == PrimType::Comparison && Type == PrimType::Boolean)
+                    return true;
+                return Type == other;
+            }
+
+            bool operator==(const ExpressionParseResult& other) const { return Type == other.Type && Root == other.Root; }
+        };
+
+        ExpressionParseResult ParseExpression(std::uint32_t minPrecedence);
+        ExpressionParseResult ParseUnaryExpression();
+        ExpressionParseResult ParsePrimaryExpression();
+        
+
 
     private:
         struct InternalParseState;
+        struct BacktrackState;
+
         struct ErrorState
         {
             std::list<ParserError> Errors;
         };
 
-        struct LexerState
+        /// <summary>
+        /// This is a class that allows the parser to backtrack to a previous state.
+        /// </summary>
+
+        class LexerState
         {
 
         public:
@@ -115,19 +182,25 @@ namespace Pulsarion::Shader
             Token Read();
             void Consume(std::size_t count = 1);
             bool Consume(TokenType type);
+            bool Consume(TokenType type, Token& token);
+            void Backtrack(std::size_t count = 1);
+            void BacktrackTo(std::size_t index);
+            void GoTo(std::size_t index);
+            BacktrackState Snapshot();
 
             ~LexerState() = default;
             LexerState(const LexerState&) = delete;
             LexerState(LexerState&&) = delete;
 
+            std::size_t CurrentTokenIndex;
         private:
             void ReadTokens(std::size_t count);
 
             Lexer Lexer;
             std::vector<Token> TokensRead;
-            std::size_t CurrentTokenIndex;
             std::size_t EndOfStreamIndex;
         };
+
 
         ErrorState m_ErrorState;
         LexerState m_LexerState;
