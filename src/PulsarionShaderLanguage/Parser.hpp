@@ -115,6 +115,7 @@ namespace Pulsarion::Shader
         ParseResult ParseAssignment();
         ParseResult ParseDeclaration();
         ParseResult ParseAnnotation(); // This is widely used in the language, so it's a separate function
+        ParseResult ParseFunction(); // This is used to parse declarations and definitions
 
         // TOOD: Document Functions
 

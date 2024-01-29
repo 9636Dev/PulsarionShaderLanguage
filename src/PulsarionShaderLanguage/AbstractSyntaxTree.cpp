@@ -86,6 +86,8 @@ namespace Pulsarion::Shader
             return "KeywordAuto";
         case NodeType::ArgumentList:
             return "ArgumentList";
+        case NodeType::TemplateArgumentList:
+            return "TemplateArgumentList";
         default:
             return "Unknown";
         }

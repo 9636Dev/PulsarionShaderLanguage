@@ -50,6 +50,7 @@ namespace Pulsarion::Shader
         Annotation, // This is widely used in PSHL
         KeywordAuto,
         ArgumentList,
+        TemplateArgumentList,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);

@@ -420,6 +420,14 @@ namespace Pulsarion::Shader
         return state.ToResult(token.Location, NodeType::Identifier, nodeRoot);
     }
 
+    Parser::ParseResult Parser::ParseFunction()
+    {
+        // We have an identifier which is the return type
+        // We have an identifier which is the function name
+        // We have an argument list
+        // We have a scope
+    }
+
     // TODO: In the future come up with a way to determine relevance of errors
     Parser::ParseResult Parser::ParseAssignment()
     {
@@ -763,6 +771,31 @@ namespace Pulsarion::Shader
             // This is also where we check for function calls
             switch (m_LexerState.Peek().Type)
             {
+            case TokenType::LessThan: {
+                // Template arguments
+                m_LexerState.Consume();
+                SyntaxNode templateArgumentList(NodeType::TemplateArgumentList, token.Location);
+                do {
+                    auto expr = ParsePrimaryExpression(); // Template arguments can only be primary expressions
+                    if (!expr.Root.has_value())
+                    {
+                        expr.Errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected expression in template argument list");
+                        // We can return the result, since it is not a valid expression
+                        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, expr.Errors);
+                    }
+
+                    templateArgumentList.Children.push_back(std::move(expr.Root.value()));
+                } while (m_LexerState.Consume(TokenType::Comma));
+
+                if (!m_LexerState.Consume(TokenType::GreaterThan))
+                {
+                    errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected closing angle bracket");
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+                }
+
+                state.AddChild(std::move(templateArgumentList));
+             } // Fallthrough
+             [[fallthrough]];
             case TokenType::LeftParenthesis: {
                 // We consume the left parenthesis
                 m_LexerState.Consume();
