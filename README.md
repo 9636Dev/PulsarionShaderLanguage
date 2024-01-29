@@ -40,7 +40,7 @@ struct VertOuput
 ```cpp
 // Fragment shader
 
-#uniform texture2D texture;
+[[uniform]] texture2D texture;
 
 [[fragment]] vec4 fragment(VertexOutput input) {
     return sampler(texture, input.uv);

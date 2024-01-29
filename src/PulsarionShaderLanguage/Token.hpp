@@ -24,6 +24,8 @@ namespace Pulsarion::Shader
         RightParenthesis,
         LeftBrace,
         RightBrace,
+        DoubleLeftBracket, // [[ for annotations
+        DoubleRightBracket,
         LeftBracket,
         RightBracket,
         Semicolon,
@@ -86,6 +88,7 @@ namespace Pulsarion::Shader
         True,
         False,
         Using,
+        Auto,
         Namespace,
     };
 

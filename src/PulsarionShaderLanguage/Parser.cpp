@@ -1,4 +1,5 @@
 #include "AbstractSyntaxTree.hpp"
+#include "PulsarionShaderLanguage/Token.hpp"
 #include "Parser.hpp"
 
 namespace Pulsarion::Shader
@@ -291,7 +292,9 @@ namespace Pulsarion::Shader
 
                     if (result.Root.has_value())
                     {
-                        state.AddChild(std::move(result.Root.value()));
+                        // We do one more check, so we don't add any blank lines
+                        if (result.Root->Children.size() > 0)
+                            state.AddChild(std::move(result.Root.value()));
                         break;
                     }
 
@@ -313,8 +316,16 @@ namespace Pulsarion::Shader
 
         while (!tokenInfo.IsEndOfStatement)
         {
-            // For now we just add the invidual tokens as children
-            auto result = ParseExpression();
+            auto result = ParseAssignment();
+            if (result.Root.has_value())
+            {
+                // We have an assignment, so we can return the result
+                state.AddChild(std::move(result.Root.value()));
+                state.Errors.splice(state.Errors.end(), result.Errors);
+                return state.ToResult(m_LexerState.Peek().Location, NodeType::Statement);
+            }
+
+            result = ParseExpression();
             if (!result.Root.has_value())
             {
                 // We can return the result, since it is not a valid expression
@@ -409,7 +420,178 @@ namespace Pulsarion::Shader
         return state.ToResult(token.Location, NodeType::Identifier, nodeRoot);
     }
 
-    // TODO: Actually add error handling and proper error messages for ExpressionParseResult
+    // TODO: In the future come up with a way to determine relevance of errors
+    Parser::ParseResult Parser::ParseAssignment()
+    {
+        InternalParseState state(m_LexerState.Peek());
+        auto backtrackState = m_LexerState.Snapshot();
+
+        // First we parse declaration, since it is a subset of assignment
+        auto result = ParseDeclaration();
+        if (result.Root.has_value())
+        {
+            backtrackState.KeepChanges();
+            return result;
+        }
+
+        // We don't have a declaration, so we try to parse an assignment
+        auto identifier = ParseIdentifier();
+        if (!result.Root.has_value())
+            return result;
+
+        NodeType type = NodeType::Token; // This is a placeholder
+        Token token = m_LexerState.Read();
+        switch (token.Type)
+        {
+        case TokenType::PlusEqual:
+            type = NodeType::AssignmentAdd;
+            break;
+        case TokenType::MinusEqual:
+            type = NodeType::AssignmentSubtract;
+            break;
+        case TokenType::AsteriskEqual:
+            type = NodeType::AssignmentMultiply;
+            break;
+        case TokenType::SlashEqual:
+            type = NodeType::AssignmentDivide;
+            break;
+        case TokenType::PercentEqual:
+            type = NodeType::AssignmentModulo;
+            break;
+        case TokenType::LeftShiftEqual:
+            type = NodeType::AssignmentBitwiseLeftShift;
+            break;
+        case TokenType::RightShiftEqual:
+            type = NodeType::AssignmentBitwiseRightShift;
+            break;
+        case TokenType::AmpersandEqual:
+            type = NodeType::AssignmentBitwiseAnd;
+            break;
+        case TokenType::CaretEqual:
+            type = NodeType::AssignmentBitwiseXor;
+            break;
+        case TokenType::PipeEqual:
+            type = NodeType::AssignmentBitwiseOr;
+            break;
+        default:
+            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, "Expected valid assignment operator") }, 0);
+        }
+
+        auto expression = ParseExpression();
+        if (!expression.Root.has_value())
+            return expression;
+        state.AddChild(std::move(identifier.Root.value()));
+        state.AddChild(std::move(expression.Root.value()));
+        backtrackState.KeepChanges();
+        return state.ToResult(m_LexerState.Peek().Location, type, token);
+    }
+
+    Parser::ParseResult Parser::ParseDeclaration()
+    {
+        auto token = m_LexerState.Peek();
+        InternalParseState state(token);
+        auto backtrackState = m_LexerState.Snapshot();
+
+        // There could be annotations, so we try to parse them first
+        auto annotation = ParseAnnotation();
+        if (annotation.Root.has_value())
+            state.AddChild(std::move(annotation.Root.value()));
+
+        // Auto will require type deduction
+        if (!m_LexerState.Consume(TokenType::Auto))
+        {
+            auto result = ParseIdentifier();
+            if (!result.Root.has_value())
+                return result;
+            state.AddChild(std::move(result.Root.value()));
+        }
+        else
+            state.AddChild(SyntaxNode(NodeType::KeywordAuto, token.Location));
+
+        // We have a valid type for the assignment.
+
+        // There should be another identifier, we current don't support unpackings auto [a, b] = ...
+        auto identifier = ParseIdentifier();
+        if (!identifier.Root.has_value())
+            return identifier;
+        state.AddChild(std::move(identifier.Root.value()));
+
+        // Now if there is an equal sign, we have an initializer
+        if (!m_LexerState.Consume(TokenType::Equal))
+        {
+            // It can also be the case that it is a C++ style declaration, so we try to parse it, if it wasn't auto
+            if (m_LexerState.Consume(TokenType::LeftParenthesis))
+{
+                PULSARION_ASSERT(state.Children.size() > 0, "There should be at least one child, since we have an identifier");
+                if (state.Children[0].Type == NodeType::KeywordAuto)
+                {
+                    // We can return the result, since it is not a valid expression
+                    return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, "Expected type for variable declaration using initializer list") }, 0);
+                }
+
+                SyntaxNode argumentList(NodeType::ArgumentList, token.Location);
+                do {
+                    auto expr = ParseExpression();
+                    if (!expr.Root.has_value())
+                    {
+                        expr.Errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected expression in initialization list");
+                        // We can return the result, since it is not a valid expression
+                        state.Errors.splice(state.Errors.end(), expr.Errors);
+                        return state.ToErrorResult(m_LexerState.Peek().Location);
+                    }
+
+                    argumentList.Children.push_back(std::move(expr.Root.value()));
+                } while (m_LexerState.Consume(TokenType::Comma));
+
+                state.AddChild(std::move(argumentList));
+
+                if (!m_LexerState.Consume(TokenType::RightParenthesis))
+                {
+                    // We can return the result, since it is not a valid expression
+                    return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, "Expected closing parenthesis") }, 0);
+                }
+
+                backtrackState.KeepChanges();
+                return state.ToResult(m_LexerState.Peek().Location, NodeType::VariableInitialization);
+            }
+
+            backtrackState.KeepChanges();
+            return state.ToResult(m_LexerState.Peek().Location, NodeType::VariableDeclaration);
+        }
+
+        // We have an initializer
+        auto initializer = ParseExpression();
+        if (!initializer.Root.has_value())
+            return initializer;
+
+        backtrackState.KeepChanges();
+        state.AddChild(std::move(initializer.Root.value()));
+        return state.ToResult(m_LexerState.Peek().Location, NodeType::VariableDefinition);
+    }
+
+    Parser::ParseResult Parser::ParseAnnotation()
+    {
+        auto backtrackState = m_LexerState.Snapshot();
+        InternalParseState state(m_LexerState.Peek());
+
+        // We try to consume double brackets
+        if (!m_LexerState.Consume(TokenType::DoubleLeftBracket))
+            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, "Expected double left bracket") }, 0);
+
+        // We have double brackets, so we can parse the annotation
+        Token token = m_LexerState.Read();
+        if (token.Type != TokenType::Identifier)
+            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, "Expected identifier") }, 0);
+
+        // We have an identifier, so we can parse the arguments
+        if (!m_LexerState.Consume(TokenType::DoubleRightBracket))
+            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, "Expected double right bracket") }, 0);
+
+
+        state.AddChild(SyntaxNode(token));
+        backtrackState.KeepChanges();
+        return state.ToResult(m_LexerState.Peek().Location, NodeType::Annotation);
+    }
 
     Parser::ExpressionParseResult Parser::ParseExpression(std::uint32_t minPrecedence)
     {
@@ -595,6 +777,7 @@ namespace Pulsarion::Shader
                     return ExpressionParseResult(ExpressionParseResult::PrimType::Undetermined, state.CreateNode(NodeType::FunctionCall));
                 }
 
+                SyntaxNode argumentList(NodeType::ArgumentList, token.Location);
                 do {
                     auto expr = ParseExpression();
                     if (!expr.Root.has_value())
@@ -604,8 +787,10 @@ namespace Pulsarion::Shader
                         return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, expr.Errors);
                     }
 
-                    state.AddChild(std::move(expr.Root.value()));
+                    argumentList.Children.push_back(std::move(expr.Root.value()));
                 } while (m_LexerState.Consume(TokenType::Comma));
+
+                state.AddChild(std::move(argumentList));
 
                 if (!m_LexerState.Consume(TokenType::RightParenthesis))
                 {

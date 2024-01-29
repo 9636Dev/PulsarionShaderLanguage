@@ -22,6 +22,8 @@ namespace Pulsarion::Shader
             case TokenType::RightParenthesis: return "RightParenthesis";
             case TokenType::LeftBrace: return "LeftBrace";
             case TokenType::RightBrace: return "RightBrace";
+            case TokenType::DoubleLeftBracket: return "DoubleLeftBracket";
+            case TokenType::DoubleRightBracket: return "DoubleRightBracket";
             case TokenType::LeftBracket: return "LeftBracket";
             case TokenType::RightBracket: return "RightBracket";
             case TokenType::Semicolon: return "Semicolon";
@@ -81,6 +83,7 @@ namespace Pulsarion::Shader
             case TokenType::True: return "True";
             case TokenType::False: return "False";
             case TokenType::Using: return "Using";
+            case TokenType::Auto: return "Auto";
             case TokenType::Namespace: return "Namespace";
             default: return "UnhandledTokenType";
         }

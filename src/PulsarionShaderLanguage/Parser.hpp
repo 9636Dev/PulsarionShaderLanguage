@@ -27,6 +27,8 @@ namespace Pulsarion::Shader
             Statement,
             Expression,
             Identifier,
+            Assignment,
+            Annotation,
         };
 
         SourceLocation Location;
@@ -89,7 +91,7 @@ namespace Pulsarion::Shader
 
         /// <summary>
         /// Parses a scope.
-        /// Does not expect an opening brace, expects a closing brace and consumes it. 
+        /// Does not expect an opening brace, expects a closing brace and consumes it.
         /// Errors Codes:
         /// 0x00000001 - Expected a closing brace (reached EOF without finding one, but still returns a result).
         /// 0x00000002 - More than one closing brace not found (Nested scopes are also missing closing braces).
@@ -110,6 +112,9 @@ namespace Pulsarion::Shader
         ParseResult ParseExpression();
 
         ParseResult ParseIdentifier();
+        ParseResult ParseAssignment();
+        ParseResult ParseDeclaration();
+        ParseResult ParseAnnotation(); // This is widely used in the language, so it's a separate function
 
         // TOOD: Document Functions
 
@@ -153,7 +158,7 @@ namespace Pulsarion::Shader
         ExpressionParseResult ParseExpression(std::uint32_t minPrecedence);
         ExpressionParseResult ParseUnaryExpression();
         ExpressionParseResult ParsePrimaryExpression();
-        
+
 
 
     private:

@@ -31,6 +31,25 @@ namespace Pulsarion::Shader
         ParenthesizedExpression,
         FunctionCall,
         ArrayIndex,
+        Assignment,
+        VariableDeclaration,
+        VariableDefinition, // This is a variable declaration with an initializer or using an assignment operator
+        VariableInitialization, // This is a variable declaration with an initializer list like in C++
+        ArrayDeclaration,
+        ArrayDefinition, // This is an array declaration with an initializer or using an assignment operator
+        AssignmentAdd,
+        AssignmentSubtract,
+        AssignmentMultiply,
+        AssignmentDivide,
+        AssignmentModulo,
+        AssignmentBitwiseAnd,
+        AssignmentBitwiseOr,
+        AssignmentBitwiseXor,
+        AssignmentBitwiseLeftShift,
+        AssignmentBitwiseRightShift,
+        Annotation, // This is widely used in PSHL
+        KeywordAuto,
+        ArgumentList,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);

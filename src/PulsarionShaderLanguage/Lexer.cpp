@@ -24,6 +24,7 @@ namespace Pulsarion::Shader
         { "default", TokenType::Default },
         { "struct", TokenType::Struct },
         { "using", TokenType::Using },
+        { "auto", TokenType::Auto },
         { "namespace", TokenType::Namespace },
         // Just basic tokens, add more later
     };
@@ -52,8 +53,18 @@ namespace Pulsarion::Shader
         case ')':
             return {TokenType::RightParenthesis, ")", m_Line, column, index};
         case '[':
+            if (CurrentChar() == '[')
+            {
+                (void)NextChar();
+                return {TokenType::DoubleLeftBracket, "[[", m_Line, column, index};
+            }
             return {TokenType::LeftBracket, "[", m_Line, column, index};
         case ']':
+            if (CurrentChar() == ']')
+            {
+                (void)NextChar();
+                return {TokenType::DoubleRightBracket, "]]", m_Line, column, index};
+            }
             return {TokenType::RightBracket, "]", m_Line, column, index};
         case '{':
             return {TokenType::LeftBrace, "{", m_Line, column, index};

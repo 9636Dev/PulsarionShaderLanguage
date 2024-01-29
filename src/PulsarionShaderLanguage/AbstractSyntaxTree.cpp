@@ -48,6 +48,44 @@ namespace Pulsarion::Shader
             return "FunctionCall";
         case NodeType::ArrayIndex:
             return "ArrayIndex";
+        case NodeType::Assignment:
+            return "Assignment";
+        case NodeType::VariableDeclaration:
+            return "VariableDeclaration";
+        case NodeType::VariableDefinition:
+            return "VariableDefinition";
+        case NodeType::VariableInitialization:
+            return "VariableInitialization";
+        case NodeType::ArrayDeclaration:
+            return "ArrayDeclaration";
+        case NodeType::ArrayDefinition:
+            return "ArrayDefinition";
+        case NodeType::AssignmentAdd:
+            return "AssignmentAdd";
+        case NodeType::AssignmentSubtract:
+            return "AssignmentSubtract";
+        case NodeType::AssignmentMultiply:
+            return "AssignmentMultiply";
+        case NodeType::AssignmentDivide:
+            return "AssignmentDivide";
+        case NodeType::AssignmentModulo:
+            return "AssignmentModulo";
+        case NodeType::AssignmentBitwiseAnd:
+            return "AssignmentBitwiseAnd";
+        case NodeType::AssignmentBitwiseOr:
+            return "AssignmentBitwiseOr";
+        case NodeType::AssignmentBitwiseXor:
+            return "AssignmentBitwiseXor";
+        case NodeType::AssignmentBitwiseLeftShift:
+            return "AssignmentBitwiseLeftShift";
+        case NodeType::AssignmentBitwiseRightShift:
+            return "AssignmentBitwiseRightShift";
+        case NodeType::Annotation:
+            return "Annotation";
+        case NodeType::KeywordAuto:
+            return "KeywordAuto";
+        case NodeType::ArgumentList:
+            return "ArgumentList";
         default:
             return "Unknown";
         }
