@@ -34,7 +34,7 @@ namespace Pulsarion::Shader
             case TokenType::RightBrace:
                 return TokenInfo(true, false); // We should not consume it, because the scope parser will consume it
             case TokenType::EndOfFile:
-                return TokenInfo(true, false); 
+                return TokenInfo(true, false);
             default:
                 return TokenInfo(false, false);
             }
@@ -162,7 +162,7 @@ namespace Pulsarion::Shader
         BacktrackState(class LexerState& LexerState, std::size_t backtrackTo)
             : LexerState(LexerState), BacktrackTo(backtrackTo), ShouldBacktrack(true)
         {
-        
+
         }
 
         void KeepChanges()
@@ -543,7 +543,7 @@ namespace Pulsarion::Shader
         // We want to avoid repeating .Consume, so we just backtrack if we fail
         auto token = m_LexerState.Read();
         InternalParseState state(token);
-        std::list<ParserError> errors; 
+        std::list<ParserError> errors;
 
         switch (token.Type)
         {
@@ -658,6 +658,8 @@ namespace Pulsarion::Shader
                 backtrackState.KeepChanges();
                 return ExpressionParseResult(ExpressionParseResult::PrimType::Numeric, state.CreateNode(NodeType::NumericPostDecrement));
             }
+            default:
+                break;
             }
 
             backtrackState.KeepChanges();
@@ -692,7 +694,7 @@ namespace Pulsarion::Shader
             auto result = ParseIdentifier();
             if (!result.Root.has_value())
                 return ExpressionParseResult(PrimType::Failed);
-            return ExpressionParseResult(PrimType::Undetermined, std::move(result.Root)); 
+            return ExpressionParseResult(PrimType::Undetermined, std::move(result.Root));
         }
         default:
             return ExpressionParseResult(PrimType::Failed);
@@ -782,7 +784,7 @@ namespace Pulsarion::Shader
     {
         if (index >= EndOfStreamIndex)
         {
-            // We try to be tolerant, so we just return without erroring 
+            // We try to be tolerant, so we just return without erroring
             return;
         }
 
