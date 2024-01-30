@@ -49,8 +49,16 @@ namespace Pulsarion::Shader
         AssignmentBitwiseRightShift,
         Annotation, // This is widely used in PSHL
         KeywordAuto,
+        FunctionArgument,
+        FunctionArgumentList,
         ArgumentList,
         TemplateArgumentList,
+        FunctionDefinition,
+        FunctionDeclaration,
+        StructDefinition,
+        StructDeclaration,
+        StructMemberVariable,
+        StructMemberFunction,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);

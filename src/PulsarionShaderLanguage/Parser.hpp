@@ -29,6 +29,8 @@ namespace Pulsarion::Shader
             Identifier,
             Assignment,
             Annotation,
+            Function,
+            Struct
         };
 
         SourceLocation Location;
@@ -40,6 +42,31 @@ namespace Pulsarion::Shader
         ParserError(SourceLocation location, ErrorSource source, ErrorSeverity severity, std::string message, std::uint32_t errorFlagSet = 0u)
             : Location(location), Source(source), Severity(severity), Message(message), ErrorFlagSet(errorFlagSet)
         {
+        }
+
+        static std::string ErrorSourceToString(ErrorSource source)
+        {
+            switch (source)
+            {
+            case ErrorSource::Scope:
+                return "Scope";
+            case ErrorSource::Statement:
+                return "Statement";
+            case ErrorSource::Expression:
+                return "Expression";
+            case ErrorSource::Identifier:
+                return "Identifier";
+            case ErrorSource::Assignment:
+                return "Assignment";
+            case ErrorSource::Annotation:
+                return "Annotation";
+            case ErrorSource::Function:
+                return "Function";
+            case ErrorSource::Struct:
+                return "Struct";
+            default:
+                return "Unknown";
+            }
         }
     };
 
@@ -80,6 +107,8 @@ namespace Pulsarion::Shader
                 : Root(root), Errors(errors), ErrorFlags(errorFlags), WasRecovered(wasRecovered)
             {
             }
+
+            ParseResult() : Root(std::nullopt), Errors(), ErrorFlags(0u), WasRecovered(false) {}
         };
 
 
@@ -111,11 +140,13 @@ namespace Pulsarion::Shader
         /// <returns>The result of the expression parse</returns>
         ParseResult ParseExpression();
 
-        ParseResult ParseIdentifier();
+        ParseResult ParseIdentifier(bool allowNamespace = true, bool allowTrailing = true);
         ParseResult ParseAssignment();
         ParseResult ParseDeclaration();
         ParseResult ParseAnnotation(); // This is widely used in the language, so it's a separate function
-        ParseResult ParseFunction(); // This is used to parse declarations and definitions
+        ParseResult ParseFunction(); // This is used to parse definitions
+        ParseResult ParseDeclarations(); // Parses declarations for structs and functions
+        ParseResult ParseStruct(); // Parses a struct definition
 
         // TOOD: Document Functions
 
@@ -159,8 +190,6 @@ namespace Pulsarion::Shader
         ExpressionParseResult ParseExpression(std::uint32_t minPrecedence);
         ExpressionParseResult ParseUnaryExpression();
         ExpressionParseResult ParsePrimaryExpression();
-
-
 
     private:
         struct InternalParseState;

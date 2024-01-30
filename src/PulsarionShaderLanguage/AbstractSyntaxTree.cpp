@@ -88,6 +88,22 @@ namespace Pulsarion::Shader
             return "ArgumentList";
         case NodeType::TemplateArgumentList:
             return "TemplateArgumentList";
+        case NodeType::FunctionArgument:
+            return "FunctionArgument";
+        case NodeType::FunctionArgumentList:
+            return "FunctionArgumentList";
+        case NodeType::FunctionDefinition:
+            return "FunctionDefinition";
+        case NodeType::FunctionDeclaration:
+            return "FunctionDeclaration";
+        case NodeType::StructDefinition:
+            return "StructDefinition";
+        case NodeType::StructDeclaration:
+            return "StructDeclaration";
+        case NodeType::StructMemberVariable:
+            return "StructMemberVariable";
+        case NodeType::StructMemberFunction:
+            return "StructMemberFunction";
         default:
             return "Unknown";
         }
