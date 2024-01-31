@@ -120,6 +120,12 @@ namespace Pulsarion::Shader
                 (void)NextChar();
                 return ReadComment();
             }
+            if (CurrentChar() == '*')
+            {
+                (void)NextChar();
+                return ReadInlineComment();
+            }
+
             if (CurrentChar() == '=')
             {
                 (void)NextChar();
@@ -324,6 +330,34 @@ namespace Pulsarion::Shader
         NewLine();
         return {TokenType::Comment, m_Source.substr(startIndex, end - startIndex), m_Line, startColumn, startIndex};
     }
+
+    Token Lexer::ReadInlineComment()
+    {
+        const std::size_t startIndex = m_Index;
+        const std::size_t startColumn = m_Column;
+
+        // TODO: Doesn't work
+        while (m_Index < m_Source.size() && (m_Source[m_Index] != '*'))
+        {
+            (void)NextChar();
+        }
+
+        if (m_Index >= m_Source.size()) // This is an error, we reached the end of the file without finding the end of the comment.
+            return {TokenType::InvalidComment, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
+        const size_t end = m_Index; // So we don't include the newline in the comment.
+        (void)NextChar(); // Skip the '*'
+
+        if (m_Index >= m_Source.size())
+            return {TokenType::InvalidComment, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
+        if (PeekChar() != '/')
+            return {TokenType::InvalidComment, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
+        (void)NextChar(); // Skip the '/'
+        return {TokenType::InlineComment, m_Source.substr(startIndex, end - startIndex), m_Line, startColumn, startIndex};
+    }
+
 
     Token Lexer::ReadChar()
     {

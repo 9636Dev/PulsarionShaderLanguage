@@ -71,6 +71,7 @@ namespace Pulsarion::Shader
         Hash,
         Comment,
         InlineComment,
+        InvalidComment, // When a comment is not closed
 
         // Keywords
         If,

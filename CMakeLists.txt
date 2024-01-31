@@ -33,3 +33,5 @@ target_include_directories(PulsarionShaderLanguage PUBLIC src)
 
 add_dependencies(PulsarionShaderLanguage Pulsarion::Core)
 target_link_libraries(PulsarionShaderLanguage PUBLIC Pulsarion::Core)
+
+add_subdirectory(tests)
