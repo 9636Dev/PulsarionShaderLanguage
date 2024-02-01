@@ -11,7 +11,14 @@ namespace Pulsarion::Shader
             case TokenType::EndOfFile: return "EndOfFile";
             case TokenType::Unknown: return "Unknown";
             case TokenType::Identifier: return "Identifier";
-            case TokenType::Number: return "Number";
+            case TokenType::NumberInt: return "NumberInt";
+            case TokenType::NumberFloat: return "NumberFloat";
+            case TokenType::NumberDouble: return "NumberDouble";
+            case TokenType::NumberLong: return "NumberLong";
+            case TokenType::NumberLongLong: return "NumberLongLong";
+            case TokenType::NumberUnsigned: return "NumberUnsigned";
+            case TokenType::NumberUnsignedLong: return "NumberUnsignedLong";
+            case TokenType::NumberUnsignedLongLong: return "NumberUnsignedLongLong";
             case TokenType::BinaryNumber: return "BinaryNumber";
             case TokenType::HexNumber: return "HexNumber";
             case TokenType::OctalNumber: return "OctalNumber";

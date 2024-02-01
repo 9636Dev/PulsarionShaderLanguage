@@ -11,6 +11,21 @@
 
 namespace Pulsarion::Shader
 {
+    // We have one error type for every time of error even if it is only slightly different.
+    enum class ErrorType
+    {
+        UnexpectedEndOfFileWhenFindingClosingBrace,
+        UnexpectedExtraClosingBrace,
+        ExpectedEndOfStatement, // you forgot to put a semicolon at the end of a statement
+        ExpectedIdentifierForReturnType,
+        ExpectedOpeningParenthesisForFunctionArguments,
+        ExpectedClosingParenthesisForFunctionArguments,
+        ExpectedIdentifierForArgumentType,
+        ExpectedIdentifierForIdentifier,
+        UnexpectedDotInNonTrailingIdentifier,
+        ExpectedStructKeyword,
+        ExpectedIdentifierForStructName,
+    };
 
     /// <summary>
     /// Represents a parser error.
@@ -30,19 +45,21 @@ namespace Pulsarion::Shader
             Assignment,
             Annotation,
             Function,
-            Struct
+            Struct,
+            Declaration,
         };
 
         SourceLocation Location;
         ErrorSeverity Severity;
+        ErrorType Type;
         ErrorSource Source;
-        std::string Message;
-        std::uint32_t ErrorFlagSet; // This is useful to clear only the errors that were caused by a specific error
+        std::size_t NestingLevel; // Nested errors are errors that are caused by other errors, this is the nesting level of the error
 
-        ParserError(SourceLocation location, ErrorSource source, ErrorSeverity severity, std::string message, std::uint32_t errorFlagSet = 0u)
-            : Location(location), Source(source), Severity(severity), Message(message), ErrorFlagSet(errorFlagSet)
+        ParserError(const SourceLocation &location, ErrorSource source, ErrorSeverity severity, ErrorType type)
+            : Location(location), Severity(severity), Type(type), Source(source), NestingLevel(0)
         {
         }
+
 
         static std::string ErrorSourceToString(ErrorSource source)
         {
@@ -64,6 +81,39 @@ namespace Pulsarion::Shader
                 return "Function";
             case ErrorSource::Struct:
                 return "Struct";
+            case ErrorSource::Declaration:
+                return "Declaration";
+            default:
+                return "Unknown";
+            }
+        }
+
+        static std::string ErrorTypeToString(ErrorType type)
+        {
+            switch (type)
+            {
+            case ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace:
+                return "UnexpectedEndOfFileWhenFindingClosingBrace";
+            case ErrorType::UnexpectedExtraClosingBrace:
+                return "UnexpectedExtraClosingBrace";
+            case ErrorType::ExpectedEndOfStatement:
+                return "ExpectedEndOfStatement";
+            case ErrorType::ExpectedIdentifierForReturnType:
+                return "ExpectedIdentifierForReturnType";
+            case ErrorType::ExpectedOpeningParenthesisForFunctionArguments:
+                return "ExpectedOpeningParenthesisForFunctionArguments";
+            case ErrorType::ExpectedClosingParenthesisForFunctionArguments:
+                return "ExpectedClosingParenthesisForFunctionArguments";
+            case ErrorType::ExpectedIdentifierForArgumentType:
+                return "ExpectedIdentifierForArgumentType";
+            case ErrorType::ExpectedIdentifierForIdentifier:
+                return "ExpectedIdentigierForIdentifier";
+            case ErrorType::UnexpectedDotInNonTrailingIdentifier:
+                return "UnexpectedDotInNonTrailingIdentifier";
+            case ErrorType::ExpectedStructKeyword:
+                return "ExpectedStructKeyword";
+            case ErrorType::ExpectedIdentifierForStructName:
+                return "ExpectedIdentifierForStructName";
             default:
                 return "Unknown";
             }
@@ -83,7 +133,7 @@ namespace Pulsarion::Shader
         /// <summary>
         /// Creates a new parser from a lexer.
         /// </summary>
-        Parser(Lexer&& lexer);
+        explicit Parser(Lexer&& lexer);
         ~Parser() = default;
         Parser(const Parser&) = delete;
         Parser(Parser&&) = delete;
@@ -96,19 +146,31 @@ namespace Pulsarion::Shader
         {
             std::optional<SyntaxNode> Root;
             std::list<ParserError> Errors;
-            std::uint32_t ErrorFlags;
-            /// <summary>
-            /// Whether the parser recovered from an error.
-            /// If it was recovered, then the parser can continue parsing, but the error should be reported.
-            /// </summary>
-            bool WasRecovered;
+            std::list<ParserError> Warnings;
 
-            ParseResult(std::optional<SyntaxNode> root, std::list<ParserError> errors, std::uint32_t errorFlags, bool wasRecovered = false)
-                : Root(root), Errors(errors), ErrorFlags(errorFlags), WasRecovered(wasRecovered)
+            ParseResult(std::optional<SyntaxNode> root, std::list<ParserError> errors, std::list<ParserError> warnings)
+                : Root(root), Errors(errors), Warnings(warnings)
             {
             }
 
-            ParseResult() : Root(std::nullopt), Errors(), ErrorFlags(0u), WasRecovered(false) {}
+            bool Success() const
+            {
+                if (!Errors.empty())
+                    return false;
+
+                PULSARION_ASSERT(Root.has_value(), "There are no errors but the Root node has no value!");
+                return true;
+            }
+
+            void Nest()
+            {
+                for (auto& error : Errors)
+                    error.NestingLevel++;
+                for (auto& warning : Warnings)
+                    warning.NestingLevel++;
+            }
+
+            ParseResult() : Root(std::nullopt) {}
         };
 
 
@@ -164,16 +226,25 @@ namespace Pulsarion::Shader
             PrimType Type;
             std::optional<SyntaxNode> Root;
             std::list<ParserError> Errors;
-            std::uint64_t ErrorFlags;
+            std::list<ParserError> Warnings;
 
-            ExpressionParseResult(PrimType type, std::optional<SyntaxNode> root = std::nullopt, std::list<ParserError> errors = {}, std::uint64_t errorFlags = 0ull)
-                : Type(type), Root(root), Errors(errors), ErrorFlags(errorFlags)
+            explicit ExpressionParseResult(const PrimType type, const std::optional<SyntaxNode> &root = std::nullopt,
+                                  std::list<ParserError>&& errors ={}, const std::list<ParserError>&& warnings = {})
+                : Type(type), Root(root), Errors(errors), Warnings(warnings)
             {
             }
 
+            bool Success() const
+            {
+                if (!Errors.empty())
+                    return false;
+
+                PULSARION_ASSERT(Root.has_value(), "There are no errors but the Root node has no value!");
+                return true;
+            }
             bool IsBoolean() const { return Type == PrimType::Boolean || Type == PrimType::Comparison || Type == PrimType::Undetermined; }
             bool IsNumeric() const { return Type == PrimType::Numeric || Type == PrimType::Undetermined; }
-            bool CanConvert(PrimType other) const
+            bool CanConvert(const PrimType other) const
             {
                 if (Type == PrimType::Failed || other == PrimType::Failed)
                     return false;
@@ -195,6 +266,8 @@ namespace Pulsarion::Shader
         struct InternalParseState;
         struct BacktrackState;
 
+        [[nodiscard]] inline bool ShouldReturnStatement(ParseResult& result, bool requireEOS, InternalParseState& state, BacktrackState& backtrackState);
+
         struct ErrorState
         {
             std::list<ParserError> Errors;
@@ -208,8 +281,8 @@ namespace Pulsarion::Shader
         {
 
         public:
-            LexerState(class Lexer&& lexer)
-                : Lexer(std::move(lexer)), TokensRead(), CurrentTokenIndex(0), EndOfStreamIndex(0xFFFFFFFF) // An arbitrary large number
+            explicit LexerState(class Lexer&& lexer)
+                : CurrentTokenIndex(0), Lexer(std::move(lexer)), EndOfStreamIndex(0xFFFFFFFF) // An arbitrary large number
             {
             }
 

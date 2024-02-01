@@ -1,14 +1,13 @@
 #include "Lexer.hpp"
 
-#include <PulsarionCore/Log.hpp>
 #include <PulsarionCore/Assert.hpp>
+#include <PulsarionCore/Log.hpp>
 
 #include <unordered_map>
-#include <utility>
 
 namespace Pulsarion::Shader
 {
-    static std::unordered_map<std::string, TokenType> LiteralTokens = {
+    const static std::unordered_map<std::string, TokenType> LiteralTokens = {
         { "true", TokenType::True },
         { "false", TokenType::False },
         { "if", TokenType::If },
@@ -336,7 +335,6 @@ namespace Pulsarion::Shader
         const std::size_t startIndex = m_Index;
         const std::size_t startColumn = m_Column;
 
-        // TODO: Doesn't work
         while (m_Index < m_Source.size() && (m_Source[m_Index] != '*'))
         {
             (void)NextChar();
@@ -351,7 +349,7 @@ namespace Pulsarion::Shader
         if (m_Index >= m_Source.size())
             return {TokenType::InvalidComment, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
 
-        if (PeekChar() != '/')
+        if (CurrentChar() != '/')
             return {TokenType::InvalidComment, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
 
         (void)NextChar(); // Skip the '/'
@@ -418,22 +416,37 @@ namespace Pulsarion::Shader
         {
             switch (CurrentChar())
             {
-            case 'x':
-            case 'X':
-                // Hexadecimal number
-                (void)NextChar();
+                case 'x':
+                case 'X':
+                    // Hexadecimal number
+                    (void)NextChar();
                 while (IsDigit(CurrentChar()) || (CurrentChar() >= 'a' && CurrentChar() <= 'f') || (CurrentChar() >= 'A' && CurrentChar() <= 'F'))
                 {
                     (void)NextChar();
                 }
+
+                // If the next character is still a valid identifier character then it is invalid.
+                if (IsIdentifierStart(CurrentChar()) || IsDigit(CurrentChar()))
+                {
+                    (void)NextChar(); // Consume the invalid character
+                    return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+                }
+
                 return {TokenType::HexNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-            case 'b':
-            case 'B':
-                // Binary number
-                (void)NextChar();
+                case 'b':
+                case 'B':
+                    // Binary number
+                    (void)NextChar();
                 while (CurrentChar() == '0' || CurrentChar() == '1')
                 {
                     (void)NextChar();
+                }
+
+                // If the next character is still a valid identifier character then it is invalid.
+                if (IsIdentifierStart(CurrentChar()) || IsDigit(CurrentChar()))
+                {
+                    (void)NextChar(); // Consume the invalid character
+                    return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
                 }
                 return {TokenType::BinaryNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             case 'o':
@@ -444,6 +457,13 @@ namespace Pulsarion::Shader
                 {
                     (void)NextChar();
                 }
+
+                if (IsIdentifierStart(CurrentChar()) || IsDigit(CurrentChar()))
+                {
+                    (void)NextChar(); // Consume the invalid character
+                    return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+                }
+
                 return {TokenType::OctalNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             default:
                 break;
@@ -458,8 +478,11 @@ namespace Pulsarion::Shader
         {
             if (CurrentChar() == '.')
             {
-                if (hasDecimal)
+                if (hasDecimal || hasExponent)
+                {
+                    (void)NextChar(); // We already have a decimal point, so this is invalid.
                     return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+                }
 
                 hasDecimal = true;
             }
@@ -478,54 +501,66 @@ namespace Pulsarion::Shader
         }
         // If ended with 'e' or 'E' then it is invalid.
         if (m_Source[m_Index - 1] == 'e' || m_Source[m_Index - 1] == 'E')
-        {
             return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-        }
 
         if (m_Index >= m_Source.size()) // Broken because EOF
-            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            return {hasDecimal ? TokenType::NumberFloat : TokenType::NumberInt, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
 
         // It could end with f, F, d, D, l, L, u, U, ul, UL, lu, LU, ll, LL, or ull, ULL.
 
         if (CurrentChar() == 'f' || CurrentChar() == 'F')
         {
             (void)NextChar();
-            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            return {TokenType::NumberFloat, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         if (CurrentChar() == 'd' || CurrentChar() == 'D')
         {
             (void)NextChar();
-            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            return {TokenType::NumberDouble, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         if (CurrentChar() == 'l' || CurrentChar() == 'L')
         {
             NextChar();
-            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
+            if (hasDecimal) // IMPORTANT: Make sure we consume first, even if it is invalid.
+                return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+
+            if (CurrentChar() == 'l' || CurrentChar() == 'L')
+            {
+                NextChar();
+                return {TokenType::NumberLongLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            }
+
+            return {TokenType::NumberLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         if (CurrentChar() == 'u' || CurrentChar() == 'U')
         {
             NextChar();
+
+            if (hasDecimal)
+                return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            // We can't check for signeness yet, so just make sure it isn't a decimal
             if (CurrentChar() == 'l' || CurrentChar() == 'L')
             {
                 NextChar();
                 if (CurrentChar() == 'l' || CurrentChar() == 'L')
                 {
                     NextChar();
-                    return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+                    return {TokenType::NumberUnsignedLongLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
                 }
-                return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+                return {TokenType::NumberUnsignedLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
             }
-            return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            return {TokenType::NumberUnsigned, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
         }
 
         // Otherwise it is a valid number, unless it is followed by alpha character.
         if (IsIdentifierStart(CurrentChar()))
             return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
 
-        return {TokenType::Number, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+        return {hasDecimal ? TokenType::NumberFloat : TokenType::NumberInt, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
     }
 
     Token Lexer::ReadIdentifier()
