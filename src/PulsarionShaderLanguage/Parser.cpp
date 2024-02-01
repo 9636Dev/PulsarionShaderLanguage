@@ -239,16 +239,18 @@ namespace Pulsarion::Shader
 
         if (result.Errors.empty())
         {
-            result.Errors.emplace_back(result.Root->Location, ParserError::ErrorSource::Scope, ErrorSeverity::Fatal, ErrorType::UnexpectedExtraClosingBrace);
+            result.Errors.emplace_back(result.Root->Location, ParserError::ErrorSource::Scope, ErrorSeverity::Fatal,
+                                       ErrorType::UnexpectedExtraClosingBrace);
             return result;
         }
 
-        auto it = std::find_if(result.Errors.begin(), result.Errors.end(),
-            [](const ParserError& error) { return error.Type == ErrorType::UnexpectedExtraClosingBrace && error.NestingLevel == 0; });
-        if (it != result.Errors.end())
+        if (const auto it = std::ranges::find_if(
+                    result.Errors, [](const ParserError &error)
+                    { return error.Type == ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace && error.NestingLevel == 0; });
+            it != result.Errors.end())
         {
             // We remove the error, because we don't expect a closing brace
-            result.Errors.remove(*it);
+            result.Errors.erase(it);
         }
 
         if (result.Errors.empty())
@@ -290,8 +292,8 @@ namespace Pulsarion::Shader
                 return state.ToResult(token.Location, NodeType::Scope);
             case TokenType::EndOfFile:
                 // We should return an error with the missing closing brace flag set
-                state.Errors.push_back(ParserError(state.ToLocation(token.Location), ParserError::ErrorSource::Scope,
-                    ErrorSeverity::Fatal, ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace));
+                state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Scope,
+                    ErrorSeverity::Fatal, ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace);
                 return state.ToResult(token.Location, NodeType::Scope);
             default: {
                     auto result = ParseStatement();
@@ -300,7 +302,7 @@ namespace Pulsarion::Shader
                     if (result.Success())
                     {
                         // We do one more check, so we don't add any blank lines
-                        if (result.Root->Children.size() > 0)
+                        if (!result.Root->Children.empty())
                             state.AddChild(std::move(result.Root.value()));
                         break;
                     }
@@ -337,7 +339,7 @@ namespace Pulsarion::Shader
             return result;
 
         backtrackState.UpdateBacktrackPoint();
-        result = ParseFunction(); state.Errors.splice(state.Errors.end(), result.Errors);
+        result = ParseFunction();
         if (ShouldReturnStatement(result, false, state, backtrackState))
             return result;
 
@@ -353,12 +355,13 @@ namespace Pulsarion::Shader
 
     bool Parser::ShouldReturnStatement(ParseResult &result, bool requireEOS, InternalParseState& state, BacktrackState& backtrackState)
     {
+        result.Nest();
         if (!result.Success())
         {
-            result.Nest();
             state.AddErrors(std::move(result));
             return false;
         }
+        state.AddErrors(std::move(result));
 
         const auto token = m_LexerState.Peek();
         if (const auto tokenInfo = StatementHelper::GetTokenInfo(token.Type);
@@ -410,6 +413,7 @@ namespace Pulsarion::Shader
                     ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForReturnType);
                 return state.ToErrorResult(m_LexerState.Peek().Location);
             }
+            state.AddErrors(std::move(identifier));
 
              // The first value of a function declaration is the return type
             state.AddChild(std::move(identifier));
@@ -417,6 +421,7 @@ namespace Pulsarion::Shader
 
         // Now we parse the name of the function or struct, we don't support templates yet
         auto identifier = ParseIdentifier();
+        identifier.Nest();
         if (!identifier.Success())
         {
             state.AddErrors(std::move(identifier));
@@ -424,6 +429,7 @@ namespace Pulsarion::Shader
                 ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForReturnType);
             return state.ToErrorResult(m_LexerState.Peek().Location);
         }
+        state.AddErrors(std::move(identifier));
 
         state.AddChild(std::move(identifier));
 
@@ -446,14 +452,18 @@ namespace Pulsarion::Shader
         do
         {
             auto argumentType = ParseIdentifier(true, false);
+            argumentType.Nest();
             if (!argumentType.Success())
             {
-                argumentType.Nest();
                 state.AddErrors(std::move(argumentType));
                 state.Errors.emplace_back(argumentType.Root->Location, ParserError::ErrorSource::Declaration,
                     ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForArgumentType);
                 return state.ToErrorResult(m_LexerState.Peek().Location);
             }
+            state.AddErrors(std::move(argumentType));
+
+            // There is optional argumentName, so we try to parse it, but we don't care if it fails
+            auto argumentName = ParseIdentifier(false, false);
 
             argumentList.Children.emplace_back(std::move(argumentType.Root.value()));
         } while (m_LexerState.Consume(TokenType::Comma));
@@ -578,21 +588,30 @@ namespace Pulsarion::Shader
 
         // We have a struct keyword, so we can parse the name
         auto identifier = ParseIdentifier(true, false); // We allow namespaces, but not trailing
+        identifier.Nest();
         if (!identifier.Success())
         {
-            identifier.Nest();
-            state.Errors.emplace_back()
+            state.AddErrors(std::move(identifier));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForStructName);
+            return state.ToErrorResult(token.Location);
         }
+        state.AddErrors(std::move(identifier));
 
         if (!m_LexerState.Consume(TokenType::LeftBrace))
         {
-            // We can return the result, since it is not a valid expression
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, "Expected opening brace") }, 0);
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::ExpectedOpeningBraceForFunctionBody);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
         }
 
         auto scope = ParseScope();
-        if (!scope.Root.has_value() || scope.ErrorFlags != 0) // TODO: Maybe implement better system
-            return scope;
+        scope.Nest();
+        if (!scope.Success())
+        {
+            state.AddErrors(std::move(scope));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::ExpectedScopeForStructDefinition);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
+        state.AddErrors(std::move(scope));
 
         for (auto& child : scope.Root.value().Children)
         {
@@ -603,18 +622,23 @@ namespace Pulsarion::Shader
                 child.Type = NodeType::StructMemberVariable;
                 break;
             case NodeType::VariableDefinition:
-                return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, "Variable definitions are not allowed in structs yet (Not implemented)") }, 0);
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::VariableDefinitionNotAllowedInStruct);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
             case NodeType::FunctionDefinition:
                 child.Type = NodeType::StructMemberFunction;
                 break;
             case NodeType::FunctionDeclaration:
-                return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, "Function declarations are not allowed in structs yet (Headers are not implemented)") }, 0);
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::FunctionDeclarationNotAllowedInStruct);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
             case NodeType::StructDeclaration:
-                return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, "Struct declarations are not allowed in structs yet") }, 0);
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::StructDeclarationNotAllowedInStruct);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
             case NodeType::StructDefinition:
-                return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, "Struct definitions are not allowed in structs yet") }, 0);
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::StructDefinitionNotAllowedInStruct);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
             default:
-                return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, "Unexpected node type in struct") }, 0);
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Struct, ErrorSeverity::Fatal, ErrorType::UnexpectedNodeTypeInStruct);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
             }
         }
 
@@ -638,30 +662,53 @@ namespace Pulsarion::Shader
 
         // We have an identifier which is the return type
         auto returnType = ParseIdentifier(true, false);
-        if (!returnType.Root.has_value())
-            return returnType;
+        returnType.Nest();
+        if (!returnType.Success())
+        {
+            state.AddErrors(std::move(returnType));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForReturnType);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
         // We have an identifier which is the function name
         auto functionName = ParseIdentifier(true, false);
-        if (!functionName.Root.has_value())
-            return functionName;
+        functionName.Nest();
+        if (!functionName.Success())
+        {
+            state.AddErrors(std::move(functionName));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForFunctionName);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
         if (!m_LexerState.Consume(TokenType::LeftParenthesis))
         {
-            // We can return the result, since it is not a valid expression
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, "Expected opening parenthesis") }, 0);
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedOpeningParenthesisForFunctionArguments);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
         }
 
         // We have a valid function declaration, we have a list of 2 identifiers separated by commas
         SyntaxNode argumentList(NodeType::FunctionArgumentList, token.Location);
         do {
             auto argumentType = ParseIdentifier(true, false);
-            if (!argumentType.Root.has_value())
-                return argumentType;
+            argumentType.Nest();
+            if (!argumentType.Success())
+            {
+                state.AddErrors(std::move(argumentType));
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForArgumentType);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
+            }
+            state.AddErrors(std::move(argumentType));
+
             // The name can only be one identifier token
             auto argumentName = ParseIdentifier(false, false);
-            if (!argumentName.Root.has_value())
-                return argumentName;
+            argumentName.Nest();
+            if (!argumentName.Success())
+            {
+                state.AddErrors(std::move(argumentName));
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForArgumentName);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
+            }
+            state.AddErrors(std::move(argumentName));
 
             SyntaxNode argument(NodeType::FunctionArgument, token.Location);
             argument.Children.emplace_back(std::move(argumentType.Root.value()));
@@ -672,49 +719,58 @@ namespace Pulsarion::Shader
 
         if (!m_LexerState.Consume(TokenType::RightParenthesis))
         {
-            // We can return the result, since it is not a valid expression
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, "Expected closing parenthesis") }, 0);
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedClosingParenthesisForFunctionArguments);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
         }
 
         // We don't support inline functions, so we expect a scope
         if (!m_LexerState.Consume(TokenType::LeftBrace))
         {
-            // We can return the result, since it is not a valid expression
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, "Expected opening brace") }, 0);
-
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedOpeningBraceForFunctionBody);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
         }
 
         auto scope = ParseScope();
-        if (!scope.Root.has_value())
-            return scope;
+        scope.Nest();
+        if (!scope.Success())
+        {
+            state.AddErrors(std::move(scope));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Function, ErrorSeverity::Fatal, ErrorType::ExpectedScopeForFunctionBody);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
-        state.AddChild(std::move(returnType.Root.value()));
-        state.AddChild(std::move(functionName.Root.value()));
+        state.AddChild(std::move(returnType));
+        state.AddChild(std::move(functionName));
         state.AddChild(std::move(argumentList));
-        state.AddChild(std::move(scope.Root.value()));
+        state.AddChild(std::move(scope));
 
         backtrackState.KeepChanges();
         return state.ToResult(m_LexerState.Peek().Location, NodeType::FunctionDefinition);
     }
 
-    // TODO: In the future come up with a way to determine relevance of errors
     Parser::ParseResult Parser::ParseAssignment()
     {
         InternalParseState state(m_LexerState.Peek());
         auto backtrackState = m_LexerState.Snapshot();
 
         // First we parse declaration, since it is a subset of assignment
-        auto result = ParseDeclaration();
-        if (result.Root.has_value())
+        const auto result = ParseDeclaration();
+        if (result.Success())
         {
             backtrackState.KeepChanges();
             return result;
         }
+        backtrackState.UpdateImmediately();
 
         // We don't have a declaration, so we try to parse an assignment
         auto identifier = ParseIdentifier();
-        if (!result.Root.has_value())
-            return result;
+        identifier.Nest();
+        if (!identifier.Success())
+        {
+            state.AddErrors(std::move(identifier));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForAssignment);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
         NodeType type = NodeType::Token; // This is a placeholder
         Token token = m_LexerState.Read();
@@ -751,14 +807,21 @@ namespace Pulsarion::Shader
             type = NodeType::AssignmentBitwiseOr;
             break;
         default:
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, "Expected valid assignment operator") }, 0);
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedAssignmentOperator);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
         }
 
         auto expression = ParseExpression();
-        if (!expression.Root.has_value())
-            return expression;
-        state.AddChild(std::move(identifier.Root.value()));
-        state.AddChild(std::move(expression.Root.value()));
+        expression.Nest();
+        if (!expression.Success())
+        {
+            state.AddErrors(std::move(expression));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedExpressionForAssignment);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
+
+        state.AddChild(std::move(identifier));
+        state.AddChild(std::move(expression));
         backtrackState.KeepChanges();
         return state.ToResult(m_LexerState.Peek().Location, type, token);
     }
@@ -771,16 +834,22 @@ namespace Pulsarion::Shader
 
         // There could be annotations, so we try to parse them first
         auto annotation = ParseAnnotation();
-        if (annotation.Root.has_value())
-            state.AddChild(std::move(annotation.Root.value()));
+        annotation.Nest();
+        if (annotation.Success())
+            state.AddChild(std::move(annotation));
 
         // Auto will require type deduction
         if (!m_LexerState.Consume(TokenType::Auto))
         {
             auto result = ParseIdentifier();
-            if (!result.Root.has_value())
-                return result;
-            state.AddChild(std::move(result.Root.value()));
+            result.Nest();
+            if (!result.Success())
+            {
+                state.AddErrors(std::move(result));
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForVariableDeclaration);
+                return state.ToErrorResult(m_LexerState.Peek().Location);
+            }
+            state.AddChild(std::move(result));
         }
         else
             state.AddChild(SyntaxNode(NodeType::KeywordAuto, token.Location));
@@ -789,33 +858,42 @@ namespace Pulsarion::Shader
 
         // There should be another identifier, we current don't support unpackings auto [a, b] = ...
         auto identifier = ParseIdentifier();
-        if (!identifier.Root.has_value())
-            return identifier;
-        state.AddChild(std::move(identifier.Root.value()));
+        identifier.Nest();
+        if (!identifier.Success())
+        {
+            state.AddErrors(std::move(identifier));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForVariableName);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
+
+        state.AddChild(std::move(identifier));
 
         // Now if there is an equal sign, we have an initializer
         if (!m_LexerState.Consume(TokenType::Equal))
         {
             // It can also be the case that it is a C++ style declaration, so we try to parse it, if it wasn't auto
             if (m_LexerState.Consume(TokenType::LeftParenthesis))
-{
+            {
                 PULSARION_ASSERT(state.Children.size() > 0, "There should be at least one child, since we have an identifier");
                 if (state.Children[0].Type == NodeType::KeywordAuto)
                 {
                     // We can return the result, since it is not a valid expression
-                    return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, "Expected type for variable declaration using initializer list") }, 0);
+                    state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedTypeForInitializerListVariableDeclaration);
+                    return state.ToErrorResult(m_LexerState.Peek().Location);
                 }
 
                 SyntaxNode argumentList(NodeType::ArgumentList, token.Location);
                 do {
                     auto expr = ParseExpression();
-                    if (!expr.Root.has_value())
+                    expr.Nest();
+
+                    if (!expr.Success())
                     {
-                        expr.Errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected expression in initialization list");
-                        // We can return the result, since it is not a valid expression
-                        state.Errors.splice(state.Errors.end(), expr.Errors);
+                        state.AddErrors(std::move(expr));
+                        expr.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedExpressionForInitializerListVariableDeclaration);
                         return state.ToErrorResult(m_LexerState.Peek().Location);
                     }
+                    state.AddErrors(std::move(expr));
 
                     argumentList.Children.push_back(std::move(expr.Root.value()));
                 } while (m_LexerState.Consume(TokenType::Comma));
@@ -824,8 +902,8 @@ namespace Pulsarion::Shader
 
                 if (!m_LexerState.Consume(TokenType::RightParenthesis))
                 {
-                    // We can return the result, since it is not a valid expression
-                    return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, "Expected closing parenthesis") }, 0);
+                    state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedClosingParenthesisForInitializerListVariableDeclaration);
+                    return state.ToErrorResult(m_LexerState.Peek().Location);
                 }
 
                 backtrackState.KeepChanges();
@@ -838,11 +916,16 @@ namespace Pulsarion::Shader
 
         // We have an initializer
         auto initializer = ParseExpression();
-        if (!initializer.Root.has_value())
-            return initializer;
+        initializer.Nest();
+        if (!initializer.Success())
+        {
+            state.AddErrors(std::move(initializer));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Assignment, ErrorSeverity::Fatal, ErrorType::ExpectedExpressionForVariableDefinition);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
         backtrackState.KeepChanges();
-        state.AddChild(std::move(initializer.Root.value()));
+        state.AddChild(std::move(initializer));
         return state.ToResult(m_LexerState.Peek().Location, NodeType::VariableDefinition);
     }
 
@@ -853,19 +936,29 @@ namespace Pulsarion::Shader
 
         // We try to consume double brackets
         if (!m_LexerState.Consume(TokenType::DoubleLeftBracket))
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, "Expected double left bracket") }, 0);
+        {
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, ErrorType::ExpectedDoubleLeftBracketForAnnotation);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
         // We have double brackets, so we can parse the annotation
-        Token token = m_LexerState.Read();
-        if (token.Type != TokenType::Identifier)
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, "Expected identifier") }, 0);
+        auto identifier = ParseIdentifier(false, false);
+        identifier.Nest();
+        if (!identifier.Success())
+        {
+            state.AddErrors(std::move(identifier));
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, ErrorType::ExpectedIdentifierForAnnotation);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
+        state.AddChild(std::move(identifier));
 
         // We have an identifier, so we can parse the arguments
         if (!m_LexerState.Consume(TokenType::DoubleRightBracket))
-            return ParseResult(std::nullopt, { ParserError(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, "Expected double right bracket") }, 0);
+        {
+            state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Annotation, ErrorSeverity::Fatal, ErrorType::ExpectedDoubleRightBracketForAnnotation);
+            return state.ToErrorResult(m_LexerState.Peek().Location);
+        }
 
-
-        state.AddChild(SyntaxNode(token));
         backtrackState.KeepChanges();
         return state.ToResult(m_LexerState.Peek().Location, NodeType::Annotation);
     }
@@ -880,7 +973,7 @@ namespace Pulsarion::Shader
         if (result.Type == ExpressionParseResult::PrimType::Failed)
         {
             // We can return the result, since it is not a valid expression
-            return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, result.Errors);
+            return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(result.Errors), std::move(result.Warnings));
         }
 
         // We have a valid LHS for the expression
@@ -907,7 +1000,7 @@ namespace Pulsarion::Shader
                 auto rhs = ParseExpression(operatorInfo.Precedence);
                 if (!rhs.IsBoolean())
                     return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, {
-                        ParserError(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected boolean expression", 0)
+                        ParserError(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionOperatorRequiresBooleanOperands)
                     });
                 rhsBacktrackState.KeepChanges();
 
@@ -935,8 +1028,8 @@ namespace Pulsarion::Shader
                     // We can return the result, since it is not a valid expression
                     auto errors = std::move(rhs.Errors);
                     if (rhs.Type != ExpressionParseResult::PrimType::Failed)
-                        errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Cannot convert LHS and RHS of operator", 0);
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+                        errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionComparisonOperatorRequiresCompatibleOperands);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(errors));
                 }
 
                 PULSARION_ASSERT(rhs.Root.has_value(), "Root node must have a value when there are no errors!");
@@ -960,7 +1053,9 @@ namespace Pulsarion::Shader
                 if (!rhs.IsNumeric())
                 {
                     // We can return the result, since it is not a valid expression
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, { ParserError(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected numeric expression", 0) });
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, {
+                        ParserError(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionOperatorRequiresNumericOperands)
+                    });
                 }
 
                 PULSARION_ASSERT(rhs.Root.has_value(), "Root node must have a value when there are no errors!");
@@ -981,14 +1076,14 @@ namespace Pulsarion::Shader
 
     Parser::ExpressionParseResult Parser::ParseUnaryExpression()
     {
-        #define EXPECT_BOOLEAN(var) if (!var.IsBoolean()) { errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected boolean expression"); break; }
-        #define EXPECT_NUMERIC(var) if (!var.IsNumeric()) { errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected numeric expression"); break; }
+        #define EXPECT_BOOLEAN(var) if (!var.IsBoolean()) { state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsBooleanPrimType); break; }
+        #define EXPECT_NUMERIC(var) if (!var.IsNumeric()) { state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsNumericPrimType); break; }
         #define PARSE_BOOLEAN(type) { \
             auto result = ParseUnaryExpression(); \
             EXPECT_BOOLEAN(result); \
             PULSARION_ASSERT(result.Root.has_value(), "Root node must have a value when there are no errors!"); state.AddChild(std::move(result.Root.value())); \
             backtrackState.KeepChanges(); \
-            return ExpressionParseResult(ExpressionParseResult::PrimType::Boolean, state.CreateNode(type)); \
+            return ExpressionParseResult(ExpressionParseResult::PrimType::Boolean, state.CreateNode(type), std::move(state.Errors), std::move(state.Warnings)); \
         }
         #define PARSE_NUMERIC(type) { \
             auto result = ParseUnaryExpression(); \
@@ -996,14 +1091,13 @@ namespace Pulsarion::Shader
             PULSARION_ASSERT(result.Root.has_value(), "Root node must have a value when there are no errors!"); \
             state.AddChild(std::move(result.Root.value())); \
             backtrackState.KeepChanges(); \
-            return ExpressionParseResult(ExpressionParseResult::PrimType::Numeric, state.CreateNode(type)); \
+            return ExpressionParseResult(ExpressionParseResult::PrimType::Numeric, state.CreateNode(type), std::move(state.Errors), std::move(state.Warnings)); \
         }
 
         auto backtrackState = m_LexerState.Snapshot();
         // We want to avoid repeating .Consume, so we just backtrack if we fail
         auto token = m_LexerState.Read();
         InternalParseState state(token);
-        std::list<ParserError> errors;
 
         switch (token.Type)
         {
@@ -1017,12 +1111,12 @@ namespace Pulsarion::Shader
             // Its already consumed, so we don't need to consume it again
             auto result = ParseExpression();
             if (!result.Root.has_value())
-                return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, result.Errors);
+                return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(result.Errors), std::move(result.Warnings));
 
             if (!m_LexerState.Consume(TokenType::RightParenthesis))
             {
-                errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected closing parenthesis");
-                return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+                state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsClosingParenthesis);
+                return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
             }
 
             state.AddChild(std::move(result.Root.value()));
@@ -1047,11 +1141,13 @@ namespace Pulsarion::Shader
                 SyntaxNode templateArgumentList(NodeType::TemplateArgumentList, token.Location);
                 do {
                     auto expr = ParsePrimaryExpression(); // Template arguments can only be primary expressions
+                    state.Errors.splice(state.Errors.end(), std::move(expr.Errors));
+                    state.Warnings.splice(state.Warnings.end(), std::move(expr.Warnings));
                     if (!expr.Root.has_value())
                     {
-                        expr.Errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected expression in template argument list");
+                        state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedExpressionInTemplateArgumentList);
                         // We can return the result, since it is not a valid expression
-                        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, expr.Errors);
+                        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
                     }
 
                     templateArgumentList.Children.push_back(std::move(expr.Root.value()));
@@ -1059,8 +1155,8 @@ namespace Pulsarion::Shader
 
                 if (!m_LexerState.Consume(TokenType::GreaterThan))
                 {
-                    errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected closing angle bracket");
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+                    state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedClosingAngleBracketForTemplateArgumentList);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
                 }
 
                 state.AddChild(std::move(templateArgumentList));
@@ -1083,11 +1179,13 @@ namespace Pulsarion::Shader
                 SyntaxNode argumentList(NodeType::ArgumentList, token.Location);
                 do {
                     auto expr = ParseExpression();
+                    state.Errors.splice(state.Errors.end(), std::move(expr.Errors));
+                    state.Warnings.splice(state.Warnings.end(), std::move(expr.Warnings));
                     if (!expr.Root.has_value())
                     {
-                        expr.Errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected expression in function call");
+                        expr.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedExpressionInFunctionCallArgumentList);
                         // We can return the result, since it is not a valid expression
-                        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, expr.Errors);
+                        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
                     }
 
                     argumentList.Children.push_back(std::move(expr.Root.value()));
@@ -1097,8 +1195,8 @@ namespace Pulsarion::Shader
 
                 if (!m_LexerState.Consume(TokenType::RightParenthesis))
                 {
-                    errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected closing parenthesis");
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+                    state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedClosingParenthesisForFunctionCallArgumentList);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
                 }
 
                 backtrackState.KeepChanges();
@@ -1114,19 +1212,21 @@ namespace Pulsarion::Shader
 
                 // Should be a numerical expression
                 auto expr = ParseExpression(0);
+                state.Errors.splice(state.Errors.end(), std::move(expr.Errors));
+                state.Warnings.splice(state.Warnings.end(), std::move(expr.Warnings));
                 if (!expr.IsNumeric())
                 {
-                    expr.Errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected numeric expression in array index access");
+                    expr.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedNumericExpressionForArrayAccess);
                     // We can return the result, since it is not a valid expression
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, expr.Errors);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
                 }
 
                 state.AddChild(std::move(expr.Root.value()));
 
                 if (!m_LexerState.Consume(TokenType::RightBracket))
                 {
-                    errors.emplace_back(state.CreateLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, "Expected closing bracket");
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+                    state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedClosingBracketForArrayAccess);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
                 }
 
                 backtrackState.KeepChanges();
@@ -1155,7 +1255,7 @@ namespace Pulsarion::Shader
         }
         }
         // We leverage the power of the C++ destructor to make sure that we backtrack if we fail
-        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, errors);
+        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
 
         #undef EXPECT_BOOLEAN
         #undef EXPECT_NUMERIC

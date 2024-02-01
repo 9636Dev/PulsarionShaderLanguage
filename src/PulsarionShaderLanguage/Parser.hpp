@@ -25,6 +25,40 @@ namespace Pulsarion::Shader
         UnexpectedDotInNonTrailingIdentifier,
         ExpectedStructKeyword,
         ExpectedIdentifierForStructName,
+        ExpectedOpeningBraceForFunctionBody,
+        VariableDefinitionNotAllowedInStruct,
+        FunctionDeclarationNotAllowedInStruct,
+        StructDeclarationNotAllowedInStruct,
+        StructDefinitionNotAllowedInStruct,
+        UnexpectedNodeTypeInStruct,
+        ExpectedIdentifierForFunctionName,
+        ExpectedIdentifierForArgumentName,
+        ExpectedScopeForStructDefinition,
+        ExpectedScopeForFunctionBody,
+        ExpectedIdentifierForAssignment,
+        ExpectedAssignmentOperator,
+        ExpectedExpressionForAssignment,
+        ExpectedIdentifierForVariableDeclaration,
+        ExpectedIdentifierForVariableName,
+        ExpectedTypeForInitializerListVariableDeclaration,
+        ExpectedExpressionForInitializerListVariableDeclaration,
+        ExpectedClosingParenthesisForInitializerListVariableDeclaration,
+        ExpectedExpressionForVariableDefinition,
+        ExpectedDoubleLeftBracketForAnnotation,
+        ExpectedIdentifierForAnnotation,
+        ExpectedDoubleRightBracketForAnnotation,
+        ExpressionOperatorRequiresBooleanOperands,
+        ExpressionComparisonOperatorRequiresCompatibleOperands,
+        ExpressionOperatorRequiresNumericOperands,
+        ExpressionExpectsNumericPrimType,
+        ExpressionExpectsBooleanPrimType,
+        ExpressionExpectsClosingParenthesis,
+        ExpectedExpressionInTemplateArgumentList,
+        ExpectedClosingAngleBracketForTemplateArgumentList,
+        ExpectedExpressionInFunctionCallArgumentList,
+        ExpectedClosingParenthesisForFunctionCallArgumentList,
+        ExpectedNumericExpressionForArrayAccess,
+        ExpectedClosingBracketForArrayAccess,
     };
 
     /// <summary>
@@ -114,6 +148,74 @@ namespace Pulsarion::Shader
                 return "ExpectedStructKeyword";
             case ErrorType::ExpectedIdentifierForStructName:
                 return "ExpectedIdentifierForStructName";
+            case ErrorType::ExpectedOpeningBraceForFunctionBody:
+                return "ExpectedOpeningBraceForFunctionBody";
+            case ErrorType::VariableDefinitionNotAllowedInStruct:
+                return "VariableDefinitionNotAllowedInStruct";
+            case ErrorType::FunctionDeclarationNotAllowedInStruct:
+                return "FunctionDeclarationNotAllowedInStruct";
+            case ErrorType::StructDeclarationNotAllowedInStruct:
+                return "StructDeclarationNotAllowedInStruct";
+            case ErrorType::StructDefinitionNotAllowedInStruct:
+                return "StructDefinitionNotAllowedInStruct";
+            case ErrorType::UnexpectedNodeTypeInStruct:
+                return "UnexpectedNodeTypeInStruct";
+            case ErrorType::ExpectedIdentifierForFunctionName:
+                return "ExpectedIdentifierForFunctionName";
+            case ErrorType::ExpectedIdentifierForArgumentName:
+                return "ExpectedIdentifierForArgumentName";
+            case ErrorType::ExpectedScopeForStructDefinition:
+                return "ExpectedScopeForStructDefinition";
+            case ErrorType::ExpectedScopeForFunctionBody:
+                return "ExpectedScopeForFunctionBody";
+            case ErrorType::ExpectedIdentifierForAssignment:
+                return "ExpectedIdentifierForAssignment";
+            case ErrorType::ExpectedAssignmentOperator:
+                return "ExpectedAssignmentOperator";
+            case ErrorType::ExpectedExpressionForAssignment:
+                return "ExpectedExpressionForAssignment";
+            case ErrorType::ExpectedIdentifierForVariableDeclaration:
+                return "ExpectedIdentifierForVariableDeclaration";
+            case ErrorType::ExpectedIdentifierForVariableName:
+                return "ExpectedIdentifierForVariableName";
+            case ErrorType::ExpectedTypeForInitializerListVariableDeclaration:
+                return "ExpectedTypeForInitializerListVariableDeclaration";
+            case ErrorType::ExpectedExpressionForInitializerListVariableDeclaration:
+                return "ExpectedExpressionForInitializerListVariableDeclaration";
+            case ErrorType::ExpectedClosingParenthesisForInitializerListVariableDeclaration:
+                return "ExpectedClosingParenthesisForInitializerListVariableDeclaration";
+            case ErrorType::ExpectedExpressionForVariableDefinition:
+                return "ExpectedExpressionForVariableDefinition";
+            case ErrorType::ExpectedDoubleLeftBracketForAnnotation:
+                return "ExpectedDoubleLeftBracketForAnnotation";
+            case ErrorType::ExpectedIdentifierForAnnotation:
+                return "ExpectedIdentifierForAnnotation";
+            case ErrorType::ExpectedDoubleRightBracketForAnnotation:
+                return "ExpectedDoubleRightBracketForAnnotation";
+            case ErrorType::ExpressionOperatorRequiresBooleanOperands:
+                return "ExpressionOperatorRequiresBooleanOperands";
+            case ErrorType::ExpressionComparisonOperatorRequiresCompatibleOperands:
+                return "ExpressionComparisonOperatorRequiresCompatibleOperands";
+            case ErrorType::ExpressionOperatorRequiresNumericOperands:
+                return "ExpressionOperatorRequiresNumericOperands";
+            case ErrorType::ExpressionExpectsNumericPrimType:
+                return "ExpressionExpectsNumericPrimType";
+            case ErrorType::ExpressionExpectsBooleanPrimType:
+                return "ExpressionExpectsBooleanPrimType";
+            case ErrorType::ExpressionExpectsClosingParenthesis:
+                return "ExpressionExpectsClosingParenthesis";
+            case ErrorType::ExpectedExpressionInTemplateArgumentList:
+                return "ExpectedExpressionInTemplateArgumentList";
+            case ErrorType::ExpectedClosingAngleBracketForTemplateArgumentList:
+                return "ExpectedClosingAngleBracketForTemplateArgumentList";
+            case ErrorType::ExpectedExpressionInFunctionCallArgumentList:
+                return "ExpectedExpressionInFunctionCallArgumentList";
+            case ErrorType::ExpectedClosingParenthesisForFunctionCallArgumentList:
+                return "ExpectedClosingParenthesisForFunctionCallArgumentList";
+            case ErrorType::ExpectedNumericExpressionForArrayAccess:
+                return "ExpectedNumericExpressionForArrayAccess";
+            case ErrorType::ExpectedClosingBracketForArrayAccess:
+                return "ExpectedClosingBracketForArrayAccess";
             default:
                 return "Unknown";
             }
