@@ -59,6 +59,8 @@ namespace Pulsarion::Shader
         StructDeclaration,
         StructMemberVariable,
         StructMemberFunction,
+        ReturnNoValue,
+        ReturnExpression,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);

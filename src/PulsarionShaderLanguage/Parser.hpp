@@ -59,6 +59,9 @@ namespace Pulsarion::Shader
         ExpectedClosingParenthesisForFunctionCallArgumentList,
         ExpectedNumericExpressionForArrayAccess,
         ExpectedClosingBracketForArrayAccess,
+        ExpectedExpressionForReturnStatement,
+        ExpectedKeyword,
+        ExpectedExpression,
     };
 
     /// <summary>
@@ -81,6 +84,8 @@ namespace Pulsarion::Shader
             Function,
             Struct,
             Declaration,
+            Keyword,
+            KeywordReturn,
         };
 
         SourceLocation Location;
@@ -117,6 +122,10 @@ namespace Pulsarion::Shader
                 return "Struct";
             case ErrorSource::Declaration:
                 return "Declaration";
+            case ErrorSource::Keyword:
+                return "Keyword";
+            case ErrorSource::KeywordReturn:
+                return "KeywordReturn";
             default:
                 return "Unknown";
             }
@@ -216,6 +225,12 @@ namespace Pulsarion::Shader
                 return "ExpectedNumericExpressionForArrayAccess";
             case ErrorType::ExpectedClosingBracketForArrayAccess:
                 return "ExpectedClosingBracketForArrayAccess";
+            case ErrorType::ExpectedExpressionForReturnStatement:
+                return "ExpectedExpressionForReturnStatement";
+            case ErrorType::ExpectedKeyword:
+                return "ExpectedKeyword";
+            case ErrorType::ExpectedExpression:
+                return "ExpectedExpression";
             default:
                 return "Unknown";
             }
@@ -311,6 +326,7 @@ namespace Pulsarion::Shader
         ParseResult ParseFunction(); // This is used to parse definitions
         ParseResult ParseDeclarations(); // Parses declarations for structs and functions
         ParseResult ParseStruct(); // Parses a struct definition
+        ParseResult ParseKeywords(); // Parses keywords like 'if', 'else', 'for', 'while', etc.
 
         // TOOD: Document Functions
 

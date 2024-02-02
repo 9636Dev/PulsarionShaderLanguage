@@ -104,6 +104,10 @@ namespace Pulsarion::Shader
             return "StructMemberVariable";
         case NodeType::StructMemberFunction:
             return "StructMemberFunction";
+        case NodeType::ReturnNoValue:
+            return "ReturnNoValue";
+        case NodeType::ReturnExpression:
+            return "ReturnExpression";
         default:
             return "Unknown";
         }
