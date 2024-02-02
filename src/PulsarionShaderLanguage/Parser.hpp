@@ -141,7 +141,7 @@ namespace Pulsarion::Shader
             case ErrorType::ExpectedIdentifierForArgumentType:
                 return "ExpectedIdentifierForArgumentType";
             case ErrorType::ExpectedIdentifierForIdentifier:
-                return "ExpectedIdentigierForIdentifier";
+                return "ExpectedIdentifierForIdentifier";
             case ErrorType::UnexpectedDotInNonTrailingIdentifier:
                 return "UnexpectedDotInNonTrailingIdentifier";
             case ErrorType::ExpectedStructKeyword:

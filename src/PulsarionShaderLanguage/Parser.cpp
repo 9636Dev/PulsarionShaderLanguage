@@ -229,13 +229,9 @@ namespace Pulsarion::Shader
     Parser::ParseResult Parser::Parse()
     {
         auto result = ParseScope();
-        // It should return a result, since missing closing braces is a recoverable and non-fatal error that sets an error flag
+
         if (!result.Root.has_value())
-        {
-            // This should return early when there is an unrecoverable error or it doesn't return a result (which also means the error was unrecoverable)
-            result.Root = std::nullopt;
             return result;
-        }
 
         if (result.Errors.empty())
         {
@@ -244,8 +240,8 @@ namespace Pulsarion::Shader
             return result;
         }
 
-        if (const auto it = std::ranges::find_if(
-                    result.Errors, [](const ParserError &error)
+        if (const auto it = std::find_if(
+                    result.Errors.begin(), result.Errors.end(), [](const ParserError &error)
                     { return error.Type == ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace && error.NestingLevel == 0; });
             it != result.Errors.end())
         {
@@ -303,7 +299,9 @@ namespace Pulsarion::Shader
                     {
                         // We do one more check, so we don't add any blank lines
                         if (!result.Root->Children.empty())
-                            state.AddChild(std::move(result.Root.value()));
+                            state.AddChild(std::move(result));
+                        else
+                            state.AddErrors(std::move(result));
                         break;
                     }
 
@@ -346,6 +344,8 @@ namespace Pulsarion::Shader
         result = ParseExpression();
         if (ShouldReturnStatement(result, true, state, backtrackState))
         {
+            state.Errors.clear();
+            state.Warnings.clear();
             state.AddChild(std::move(result));
             return state.ToResult(m_LexerState.Peek().Location, NodeType::Statement);
         }
@@ -388,7 +388,7 @@ namespace Pulsarion::Shader
     Parser::ParseResult Parser::ParseExpression()
     {
         const auto result = ParseExpression(0);
-        return ParseResult(result.Root, result.Errors, result.Warnings);
+        return ParseResult(std::move(result.Root), std::move(result.Errors), std::move(result.Warnings));
     }
 
     Parser::ParseResult Parser::ParseDeclarations()
