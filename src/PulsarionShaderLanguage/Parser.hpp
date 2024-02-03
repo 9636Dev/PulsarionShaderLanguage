@@ -62,6 +62,30 @@ namespace Pulsarion::Shader
         ExpectedExpressionForReturnStatement,
         ExpectedKeyword,
         ExpectedExpression,
+        ExpectedLeftParenthesisForIfCondition,
+        ExpectedRightParenthesisForIfCondition,
+        ExpectedLeftParenthesisForWhileCondition,
+        ExpectedRightParenthesisForWhileCondition,
+        ExpectedLeftParenthesisForForCondition,
+        ExpectedRightParenthesisForForCondition,
+        ExpectedLeftParenthesisForSwitchCondition,
+        ExpectedRightParenthesisForSwitchCondition,
+        ExpectedLeftBraceForSwitchBody,
+        ExpectedRightBraceForSwitchBody,
+        ExpectedLeftBraceForDoBody,
+        ExpectedRightBraceForDoBody,
+        ExpectedSemicolonForDoWhile,
+        ExpectedLeftBraceForElseBody,
+        ExpectedRightBraceForElseBody,
+        ExpectedLeftBraceForIfBody,
+        ExpectedRightBraceForIfBody,
+        ExpectedLeftBraceForWhileBody,
+        ExpectedRightBraceForWhileBody,
+        ExpectedLeftBraceForForBody,
+        ExpectedRightBraceForForBody,
+        ExpectedColonForSwitchCase,
+        ExpectedScopeForIfBody,
+        ExpectedStatementForIfBody,
     };
 
     /// <summary>
@@ -86,6 +110,12 @@ namespace Pulsarion::Shader
             Declaration,
             Keyword,
             KeywordReturn,
+            KeywordIf,
+            KeywordElse,
+            KeywordFor,
+            KeywordWhile,
+            KeywordDo,
+            KeywordSwitch,
         };
 
         SourceLocation Location;
@@ -126,6 +156,18 @@ namespace Pulsarion::Shader
                 return "Keyword";
             case ErrorSource::KeywordReturn:
                 return "KeywordReturn";
+            case ErrorSource::KeywordIf:
+                return "KeywordIf";
+            case ErrorSource::KeywordElse:
+                return "KeywordElse";
+            case ErrorSource::KeywordFor:
+                return "KeywordFor";
+            case ErrorSource::KeywordWhile:
+                return "KeywordWhile";
+            case ErrorSource::KeywordDo:
+                return "KeywordDo";
+            case ErrorSource::KeywordSwitch:
+                return "KeywordSwitch";
             default:
                 return "Unknown";
             }
@@ -231,6 +273,54 @@ namespace Pulsarion::Shader
                 return "ExpectedKeyword";
             case ErrorType::ExpectedExpression:
                 return "ExpectedExpression";
+            case ErrorType::ExpectedLeftParenthesisForIfCondition:
+                return "ExpectedLeftParenthesisForIfCondition";
+            case ErrorType::ExpectedRightParenthesisForIfCondition:
+                return "ExpectedRightParenthesisForIfCondition";
+            case ErrorType::ExpectedLeftParenthesisForWhileCondition:
+                return "ExpectedLeftParenthesisForWhileCondition";
+            case ErrorType::ExpectedRightParenthesisForWhileCondition:
+                return "ExpectedRightParenthesisForWhileCondition";
+            case ErrorType::ExpectedLeftParenthesisForForCondition:
+                return "ExpectedLeftParenthesisForForCondition";
+            case ErrorType::ExpectedRightParenthesisForForCondition:
+                return "ExpectedRightParenthesisForForCondition";
+            case ErrorType::ExpectedLeftParenthesisForSwitchCondition:
+                return "ExpectedLeftParenthesisForSwitchCondition";
+            case ErrorType::ExpectedRightParenthesisForSwitchCondition:
+                return "ExpectedRightParenthesisForSwitchCondition";
+            case ErrorType::ExpectedLeftBraceForSwitchBody:
+                return "ExpectedLeftBraceForSwitchBody";
+            case ErrorType::ExpectedRightBraceForSwitchBody:
+                return "ExpectedRightBraceForSwitchBody";
+            case ErrorType::ExpectedLeftBraceForDoBody:
+                return "ExpectedLeftBraceForDoBody";
+            case ErrorType::ExpectedRightBraceForDoBody:
+                return "ExpectedRightBraceForDoBody";
+            case ErrorType::ExpectedSemicolonForDoWhile:
+                return "ExpectedSemicolonForDoWhile";
+            case ErrorType::ExpectedLeftBraceForElseBody:
+                return "ExpectedLeftBraceForElseBody";
+            case ErrorType::ExpectedRightBraceForElseBody:
+                return "ExpectedRightBraceForElseBody";
+            case ErrorType::ExpectedLeftBraceForIfBody:
+                return "ExpectedLeftBraceForIfBody";
+            case ErrorType::ExpectedRightBraceForIfBody:
+                return "ExpectedRightBraceForIfBody";
+            case ErrorType::ExpectedLeftBraceForWhileBody:
+                return "ExpectedLeftBraceForWhileBody";
+            case ErrorType::ExpectedRightBraceForWhileBody:
+                return "ExpectedRightBraceForWhileBody";
+            case ErrorType::ExpectedLeftBraceForForBody:
+                return "ExpectedLeftBraceForForBody";
+            case ErrorType::ExpectedRightBraceForForBody:
+                return "ExpectedRightBraceForForBody";
+            case ErrorType::ExpectedColonForSwitchCase:
+                return "ExpectedColonForSwitchCase";
+            case ErrorType::ExpectedScopeForIfBody:
+                return "ExpectedScopeForIfBody";
+            case ErrorType::ExpectedStatementForIfBody:
+                return "ExpectedStatementForIfBody";
             default:
                 return "Unknown";
             }
@@ -326,7 +416,7 @@ namespace Pulsarion::Shader
         ParseResult ParseFunction(); // This is used to parse definitions
         ParseResult ParseDeclarations(); // Parses declarations for structs and functions
         ParseResult ParseStruct(); // Parses a struct definition
-        ParseResult ParseKeywords(); // Parses keywords like 'if', 'else', 'for', 'while', etc.
+        std::pair<ParseResult, bool> ParseKeywords(); // Parses keywords like 'if', 'else', 'for', 'while', etc.
 
         // TOOD: Document Functions
 

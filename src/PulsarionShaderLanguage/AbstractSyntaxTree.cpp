@@ -108,12 +108,26 @@ namespace Pulsarion::Shader
             return "ReturnNoValue";
         case NodeType::ReturnExpression:
             return "ReturnExpression";
+        case NodeType::Break:
+            return "Break";
+        case NodeType::Continue:
+            return "Continue";
+        case NodeType::If:
+            return "If";
+        case NodeType::Else:
+            return "Else";
+        case NodeType::While:
+            return "While";
+        case NodeType::For:
+            return "For";
+        case NodeType::DoWhile:
+            return "DoWhile";
         default:
             return "Unknown";
         }
     }
 
-    static void SyntaxNodeToString(std::stringstream& ss, const SyntaxNode& node, std::uint32_t depth)
+    static void SyntaxNodeToString(std::stringstream& ss, const SyntaxNode& node, const std::uint32_t depth) // NOLINT(*-no-recursion)
     {
         ss << std::string(depth, ' ') << NodeTypeToString(node.Type);
         if (node.Content.has_value())
@@ -121,7 +135,7 @@ namespace Pulsarion::Shader
             ss << " " << node.Content.value().ToString();
         }
 
-        if (node.Children.size() == 0)
+        if (node.Children.empty())
         {
             ss << "\n";
             return;

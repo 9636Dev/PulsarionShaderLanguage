@@ -61,6 +61,13 @@ namespace Pulsarion::Shader
         StructMemberFunction,
         ReturnNoValue,
         ReturnExpression,
+        Break,
+        Continue,
+        If,
+        Else,
+        While,
+        For,
+        DoWhile,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);
@@ -72,17 +79,19 @@ namespace Pulsarion::Shader
         SourceLocation Location;
         std::vector<SyntaxNode> Children;
 
-        SyntaxNode(NodeType type, SourceLocation location, std::optional<Token> content = std::nullopt, std::vector<SyntaxNode> children = std::vector<SyntaxNode>())
+        SyntaxNode(const NodeType type, const SourceLocation &location,
+                   const std::optional<Token> &content = std::nullopt,
+                   const std::vector<SyntaxNode> &children = std::vector<SyntaxNode>())
             : Type(type), Content(content), Location(location), Children(children)
         {
         }
 
         explicit SyntaxNode(Token token)
-            : Type(NodeType::Token), Content(token), Location(token.Location), Children()
+            : Type(NodeType::Token), Content(token), Location(token.Location)
         {
         }
 
-        std::string ToString() const;
+        [[nodiscard]] std::string ToString() const;
 
         bool operator==(const SyntaxNode& other) const
         {

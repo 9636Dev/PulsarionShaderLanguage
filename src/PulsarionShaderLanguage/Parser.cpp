@@ -297,11 +297,7 @@ namespace Pulsarion::Shader
 
                     if (result.Success())
                     {
-                        // We do one more check, so we don't add any blank lines
-                        if (!result.Root->Children.empty())
-                            state.AddChild(std::move(result));
-                        else
-                            state.AddErrors(std::move(result));
+                        state.AddChild(std::move(result));
                         break;
                     }
 
@@ -323,11 +319,11 @@ namespace Pulsarion::Shader
         BacktrackState backtrackState = m_LexerState.Snapshot();
         backtrackState.KeepChanges(); // By default we keep changes
 
-        ParseResult result = ParseKeywords();
-        if (ShouldReturnStatement(result, true, state, backtrackState))
-            return result;
+        auto res = ParseKeywords();
+        if (ShouldReturnStatement(res.first, res.second, state, backtrackState))
+            return res.first;
 
-        result = ParseAssignment();
+        ParseResult result = ParseAssignment();
         if (ShouldReturnStatement(result, true, state, backtrackState))
             return result;
 
@@ -386,42 +382,108 @@ namespace Pulsarion::Shader
         return true;
     }
 
-    Parser::ParseResult Parser::ParseKeywords()
+    std::pair<Parser::ParseResult, bool> Parser::ParseKeywords()
     {
         auto backtrackState = m_LexerState.Snapshot();
-        auto token = m_LexerState.Peek();
+        auto token = m_LexerState.Read();
         InternalParseState state(token);
 
         switch (token.Type)
         {
         case TokenType::Return: {
-                m_LexerState.Consume();
             auto expression = ParseExpression();
             expression.Nest();
             if (!expression.Success())
             {
-                // TODO: Doesn't work when no expression is present
                 if (m_LexerState.Peek().Type == TokenType::Semicolon)
                 {
                     backtrackState.KeepChanges();
-                    return state.ToResult(m_LexerState.Peek().Location, NodeType::ReturnNoValue);
+                    return std::make_pair(state.ToResult(m_LexerState.Peek().Location, NodeType::ReturnNoValue), true);
                 }
 
                 state.AddErrors(std::move(expression));
                 state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::KeywordReturn,
                     ErrorSeverity::Fatal, ErrorType::ExpectedExpressionForReturnStatement);
-                return state.ToErrorResult(m_LexerState.Peek().Location);
+                return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), true);
             }
             state.AddChild(std::move(expression));
             backtrackState.KeepChanges();
-            return state.ToResult(m_LexerState.Peek().Location, NodeType::ReturnExpression);
+            return std::make_pair(state.ToResult(m_LexerState.Peek().Location, NodeType::ReturnExpression), true);
         }
+        case TokenType::If: {
+            if (!m_LexerState.Consume(TokenType::LeftParenthesis))
+            {
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::KeywordIf,
+                    ErrorSeverity::Fatal, ErrorType::ExpectedLeftParenthesisForIfCondition);
+                return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), true);
+            }
+
+            auto expression = ParseExpression();
+            expression.Nest();
+
+            if (!expression.Success())
+            {
+                state.AddErrors(std::move(expression));
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::KeywordIf,
+                    ErrorSeverity::Fatal, ErrorType::ExpectedExpression);
+                return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), true);
+            }
+
+            state.AddChild(std::move(expression));
+
+            if (!m_LexerState.Consume(TokenType::RightParenthesis))
+            {
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::KeywordIf,
+                    ErrorSeverity::Fatal, ErrorType::ExpectedRightParenthesisForIfCondition);
+                return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), true);
+            }
+
+            if (m_LexerState.Consume(TokenType::LeftBrace))
+            {
+                // We have a scope
+                auto scope = ParseScope();
+                scope.Nest();
+                if (!scope.Success())
+                {
+                    state.AddErrors(std::move(scope));
+                    state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::KeywordIf,
+                        ErrorSeverity::Fatal, ErrorType::ExpectedScopeForIfBody);
+                    return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), true);
+                }
+
+                state.AddChild(std::move(scope));
+                backtrackState.KeepChanges();
+                return std::make_pair(state.ToResult(m_LexerState.Peek().Location, NodeType::If), false);
+            }
+
+            // We don't have a scope, so we parse a statement
+            auto statement = ParseStatement();
+
+            if (!statement.Success())
+            {
+                state.AddErrors(std::move(statement));
+                state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::KeywordIf,
+                    ErrorSeverity::Fatal, ErrorType::ExpectedStatementForIfBody);
+                return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), false);
+            }
+
+            state.AddChild(std::move(statement));
+            backtrackState.KeepChanges();
+            return std::make_pair(state.ToResult(m_LexerState.Peek().Location, NodeType::If), false);
+        }
+        case TokenType::Break:
+            backtrackState.KeepChanges();
+            return std::make_pair(state.ToResult(m_LexerState.Peek().Location, NodeType::Break), true);
+        case TokenType::Continue:
+            backtrackState.KeepChanges();
+            return std::make_pair(state.ToResult(m_LexerState.Peek().Location, NodeType::Continue), true);
         default:
+            backtrackState.DiscardChanges();
             break;
         }
 
         state.Errors.emplace_back(m_LexerState.Peek().Location, ParserError::ErrorSource::Keyword, ErrorSeverity::Fatal, ErrorType::ExpectedKeyword);
-        return state.ToErrorResult(m_LexerState.Peek().Location);
+        return std::make_pair(state.ToErrorResult(m_LexerState.Peek().Location), true);
     }
 
 
@@ -1184,6 +1246,9 @@ namespace Pulsarion::Shader
             switch (m_LexerState.Peek().Type)
             {
             case TokenType::LessThan: {
+                // TODO: If this fails at any point we just treat it as a normal unary, and not a template
+                backtrackState.UpdateBacktrackPoint();
+
                 // Template arguments
                 m_LexerState.Consume();
                 SyntaxNode templateArgumentList(NodeType::TemplateArgumentList, token.Location);
@@ -1192,20 +1257,13 @@ namespace Pulsarion::Shader
                     state.Errors.splice(state.Errors.end(), std::move(expr.Errors));
                     state.Warnings.splice(state.Warnings.end(), std::move(expr.Warnings));
                     if (!expr.Root.has_value())
-                    {
-                        state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedExpressionInTemplateArgumentList);
-                        // We can return the result, since it is not a valid expression
-                        return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
-                    }
+                        return result;
 
                     templateArgumentList.Children.push_back(std::move(expr.Root.value()));
                 } while (m_LexerState.Consume(TokenType::Comma));
 
                 if (!m_LexerState.Consume(TokenType::GreaterThan))
-                {
-                    state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedClosingAngleBracketForTemplateArgumentList);
-                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
-                }
+                    return result;
 
                 state.AddChild(std::move(templateArgumentList));
              } // Fallthrough
@@ -1337,7 +1395,7 @@ namespace Pulsarion::Shader
             auto result = ParseIdentifier();
             if (!result.Root.has_value())
                 return ExpressionParseResult(PrimType::Failed);
-            return ExpressionParseResult(PrimType::Undetermined, std::move(result.Root));
+            return ExpressionParseResult(PrimType::Undetermined, result.Root);
         }
         default:
             return ExpressionParseResult(PrimType::Failed);
