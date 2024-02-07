@@ -48,6 +48,7 @@ namespace Pulsarion::Shader
             Numeric,
             Comparison,
             Logical,
+            Ternary,
             Invalid
         };
 
@@ -66,31 +67,33 @@ namespace Pulsarion::Shader
         case TokenType::Asterisk:
         case TokenType::Slash:
         case TokenType::Percent:
-            return OperatorInfo(10, OperatorInfo::Type::Numeric);
+            return OperatorInfo(11, OperatorInfo::Type::Numeric);
         case TokenType::Plus:
         case TokenType::Minus:
-            return OperatorInfo(9, OperatorInfo::Type::Numeric);
+            return OperatorInfo(10, OperatorInfo::Type::Numeric);
         case TokenType::LeftShift:
         case TokenType::RightShift:
-            return OperatorInfo(8, OperatorInfo::Type::Numeric);
+            return OperatorInfo(9, OperatorInfo::Type::Numeric);
         case TokenType::LessThan:
         case TokenType::LessThanEqual:
         case TokenType::GreaterThan:
         case TokenType::GreaterThanEqual:
-            return OperatorInfo(7, OperatorInfo::Type::Comparison);
+            return OperatorInfo(8, OperatorInfo::Type::Comparison);
         case TokenType::EqualEqual:
         case TokenType::NotEqual:
-            return OperatorInfo(6, OperatorInfo::Type::Comparison);
+            return OperatorInfo(7, OperatorInfo::Type::Comparison);
         case TokenType::Ampersand:
-            return OperatorInfo(5, OperatorInfo::Type::Logical);
+            return OperatorInfo(6, OperatorInfo::Type::Logical);
         case TokenType::Caret:
-            return OperatorInfo(4, OperatorInfo::Type::Logical);
+            return OperatorInfo(5, OperatorInfo::Type::Logical);
         case TokenType::Pipe:
-            return OperatorInfo(3, OperatorInfo::Type::Logical);
+            return OperatorInfo(4, OperatorInfo::Type::Logical);
         case TokenType::LogicalAnd:
-            return OperatorInfo(2, OperatorInfo::Type::Logical);
+            return OperatorInfo(3, OperatorInfo::Type::Logical);
         case TokenType::LogicalOr:
-            return OperatorInfo(1, OperatorInfo::Type::Logical);
+            return OperatorInfo(2, OperatorInfo::Type::Logical);
+        case TokenType::Question:
+            return OperatorInfo(1, OperatorInfo::Type::Ternary);
         default:
             return OperatorInfo(0, OperatorInfo::Type::Invalid);
         }
@@ -131,7 +134,8 @@ namespace Pulsarion::Shader
 
         void AddChild(ParseResult&& result)
         {
-            PULSARION_ASSERT(result.Success(), "The result must be successful to add it as a child!")
+            PULSARION_ASSERT(result.Success(), "The result must be successful to add it as a child!");
+            PULSARION_ASSERT(result.Root.has_value(), "The result must have a root to add it as a child!");
             AddChild(std::move(result.Root.value()));
             AddErrors(std::move(result));
         }
@@ -1095,15 +1099,69 @@ namespace Pulsarion::Shader
         {
             token = m_LexerState.Read();
             auto operatorInfo = GetOperatorInfo(token.Type);
+
+            if (operatorInfo.Precedence < minPrecedence)
+            {
+                // We don't use goto, so we have to repeat the code
+                m_LexerState.Backtrack(1);
+                backtrackState.KeepChanges();
+                return ExpressionParseResult(result.Type, lhs);
+            }
+
             switch (operatorInfo.type)
             {
-            case OperatorInfo::Type::Logical: {
-                if (!result.IsBoolean() || operatorInfo.Precedence < minPrecedence)
+            case OperatorInfo::Type::Ternary: {
+                if (!result.IsBoolean())
                 {
-                    // We don't use goto, so we have to repeat the code
-                    m_LexerState.Backtrack(1);
-                    backtrackState.KeepChanges();
-                    return ExpressionParseResult(result.Type, lhs);
+                    // We can return the result, since it is not a valid expression
+                    result.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::TernaryOperatorRequiresBooleanCondition);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(result.Errors), std::move(result.Warnings));
+                }
+
+                auto trueExpression = ParseExpression(0);
+                if (trueExpression.Type == ExpressionParseResult::PrimType::Failed)
+                {
+                    // We can return the result, since it is not a valid expression
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(trueExpression.Errors), std::move(trueExpression.Warnings));
+                }
+
+                if (!m_LexerState.Consume(TokenType::Colon))
+                {
+                    // We can return the result, since it is not a valid expression
+                    trueExpression.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpectedColonForTernaryOperator);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(trueExpression.Errors), std::move(trueExpression.Warnings));
+                }
+
+                auto falseExpression = ParseExpression(0);
+                if (falseExpression.Type == ExpressionParseResult::PrimType::Failed)
+                {
+                    // We can return the result, since it is not a valid expression
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(falseExpression.Errors), std::move(falseExpression.Warnings));
+                }
+
+                PULSARION_ASSERT(trueExpression.Root.has_value(), "Root node must have a value when there are no errors!");
+                PULSARION_ASSERT(falseExpression.Root.has_value(), "Root node must have a value when there are no errors!");
+
+                if (!trueExpression.CanConvert(falseExpression.Type))
+                {
+                    // We can return the result, since it is not a valid expression
+                    trueExpression.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::TernaryOperatorRequiresCompatibleOperands);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, std::move(trueExpression.Errors), std::move(trueExpression.Warnings));
+                }
+
+                state.AddChild(std::move(lhs));
+                state.AddChild(std::move(trueExpression.Root.value()));
+                state.AddChild(std::move(falseExpression.Root.value()));
+                auto res = state.CreateNode(NodeType::TernaryOperation, token);
+                backtrackState.KeepChanges();
+                return ExpressionParseResult(trueExpression.Type, res, std::move(result.Errors), std::move(result.Warnings));
+            }
+            case OperatorInfo::Type::Logical: {
+                if (!result.IsBoolean())
+                {
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, {
+                        ParserError(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionOperatorRequiresBooleanOperands)
+                    });
                 }
 
                 BacktrackState rhsBacktrackState = m_LexerState.Snapshot();
@@ -1124,14 +1182,6 @@ namespace Pulsarion::Shader
                 break;
             }
             case OperatorInfo::Type::Comparison: {
-                // They can bool bool or numberic numberic comparisons
-                if (operatorInfo.Precedence < minPrecedence)
-                {
-                    m_LexerState.Backtrack(1);
-                    backtrackState.KeepChanges();
-                    return ExpressionParseResult(result.Type, lhs);
-                }
-
                 auto rhs = ParseExpression(operatorInfo.Precedence);
                 if (rhs.Type == ExpressionParseResult::PrimType::Failed || !result.CanConvert(rhs.Type))
                 {
@@ -1151,11 +1201,11 @@ namespace Pulsarion::Shader
                 break;
             }
             case OperatorInfo::Type::Numeric: {
-                if (operatorInfo.type != OperatorInfo::Type::Numeric || operatorInfo.Precedence < minPrecedence)
+                if (operatorInfo.type != OperatorInfo::Type::Numeric)
                 {
-                    m_LexerState.Backtrack(1);
-                    backtrackState.KeepChanges();
-                    return ExpressionParseResult(result.Type, lhs);
+                    return ExpressionParseResult(ExpressionParseResult::PrimType::Failed, std::nullopt, {
+                        ParserError(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionOperatorRequiresNumericOperands)
+                    });
                 }
 
                 auto rhs = ParseExpression(operatorInfo.Precedence);
@@ -1186,8 +1236,8 @@ namespace Pulsarion::Shader
 
     Parser::ExpressionParseResult Parser::ParseUnaryExpression()
     {
-        #define EXPECT_BOOLEAN(var) if (!var.IsBoolean()) { state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsBooleanPrimType); break; }
-        #define EXPECT_NUMERIC(var) if (!var.IsNumeric()) { state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsNumericPrimType); break; }
+        #define EXPECT_BOOLEAN(var) if (!(var).IsBoolean()) { state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsBooleanPrimType); break; }
+        #define EXPECT_NUMERIC(var) if (!(var).IsNumeric()) { state.Errors.emplace_back(state.ToLocation(token.Location), ParserError::ErrorSource::Expression, ErrorSeverity::Fatal, ErrorType::ExpressionExpectsNumericPrimType); break; }
         #define PARSE_BOOLEAN(type) { \
             auto result = ParseUnaryExpression(); \
             EXPECT_BOOLEAN(result); \

@@ -122,6 +122,8 @@ namespace Pulsarion::Shader
             return "For";
         case NodeType::DoWhile:
             return "DoWhile";
+        case NodeType::TernaryOperation:
+            return "TernaryOperation";
         default:
             return "Unknown";
         }

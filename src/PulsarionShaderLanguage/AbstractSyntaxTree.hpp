@@ -68,6 +68,7 @@ namespace Pulsarion::Shader
         While,
         For,
         DoWhile,
+        TernaryOperation,
     };
 
     PULSARION_SHADER_LANGUAGE_API std::string NodeTypeToString(NodeType type);

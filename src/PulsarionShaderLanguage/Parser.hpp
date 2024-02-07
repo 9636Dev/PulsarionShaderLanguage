@@ -86,6 +86,9 @@ namespace Pulsarion::Shader
         ExpectedColonForSwitchCase,
         ExpectedScopeForIfBody,
         ExpectedStatementForIfBody,
+        ExpectedColonForTernaryOperator,
+        TernaryOperatorRequiresCompatibleOperands,
+        TernaryOperatorRequiresBooleanCondition,
     };
 
     /// <summary>
@@ -321,6 +324,11 @@ namespace Pulsarion::Shader
                 return "ExpectedScopeForIfBody";
             case ErrorType::ExpectedStatementForIfBody:
                 return "ExpectedStatementForIfBody";
+            case ErrorType::ExpectedColonForTernaryOperator:
+                return "ExpectedColonForTernaryOperator";
+            case ErrorType::TernaryOperatorRequiresCompatibleOperands:
+                return "TernaryOperatorRequiresCompatibleOperands";
+            case ErrorType::TernaryOperatorRequiresBooleanCondition:
             default:
                 return "Unknown";
             }
