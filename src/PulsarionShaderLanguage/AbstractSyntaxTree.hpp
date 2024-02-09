@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <optional>
+#include <functional>
 
 namespace Pulsarion::Shader
 {
@@ -100,4 +101,21 @@ namespace Pulsarion::Shader
         }
     };
 
+    enum class TraversalPhase
+    {
+        Advance, // When it advances to the next node
+        Return, // When it goes back to the parent node
+        Deepen, // When it explores the children of the current node
+    };
+
+    class PULSARION_SHADER_LANGUAGE_API AbstractSyntaxTree
+    {
+    public:
+        explicit AbstractSyntaxTree(SyntaxNode& root) : m_Root(root) {}
+
+        void Traverse(const std::function<bool(SyntaxNode&, TraversalPhase)>& callback);
+
+    private:
+        SyntaxNode& m_Root;
+    };
 }

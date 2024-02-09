@@ -14,8 +14,14 @@ set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/Lexer.cpp
     src/PulsarionShaderLanguage/Parser.hpp
     src/PulsarionShaderLanguage/Parser.cpp
+    src/PulsarionShaderLanguage/ParserUtil.hpp
+    src/PulsarionShaderLanguage/ParserUtil.cpp
     src/PulsarionShaderLanguage/AbstractSyntaxTree.hpp
     src/PulsarionShaderLanguage/AbstractSyntaxTree.cpp
+    src/PulsarionShaderLanguage/CodeGeneration.hpp
+    src/PulsarionShaderLanguage/CodeGeneration.cpp
+    src/PulsarionShaderLanguage/Optimizer.hpp
+    src/PulsarionShaderLanguage/Optimizer.cpp
 )
 
 if (NOT DEFINED PULSARION_LIBRARY_TYPE)

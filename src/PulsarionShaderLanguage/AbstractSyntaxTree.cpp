@@ -1,6 +1,7 @@
 #include "AbstractSyntaxTree.hpp"
 
 #include <sstream>
+#include <stack>
 
 namespace Pulsarion::Shader
 {
@@ -156,5 +157,44 @@ namespace Pulsarion::Shader
         std::stringstream ss;
         SyntaxNodeToString(ss, *this, 0);
         return ss.str();
+    }
+
+
+    void AbstractSyntaxTree::Traverse(const std::function<bool(SyntaxNode&, TraversalPhase)>& callback)
+    {
+        std::stack<std::pair<SyntaxNode*, size_t>> stack; // Pair of node pointer and child index
+
+        // Start with the root node and index 0 (indicating no children have been processed yet)
+        stack.emplace(&m_Root, 0);
+
+        while (!stack.empty())
+        {
+            auto& [currentNode, childIndex] = stack.top();
+
+            // If this is the first time visiting this node, invoke onNodeVisit with `TraversalPhase::Advance`
+            if (childIndex == 0 && callback(*currentNode, TraversalPhase::Advance))
+            {
+                stack.pop(); // Stop processing this node and its subtree
+                continue;
+            }
+
+            // If all children of this node have been processed, or if it has no children
+            if (childIndex >= currentNode->Children.size())
+            {
+                if (callback(*currentNode, TraversalPhase::Return))
+                {
+                    // Optionally handle the return phase, useful for post-processing
+                }
+                stack.pop(); // Move back up the tree
+                continue;
+            }
+
+            // Process the next child
+            auto& nextChild = currentNode->Children[childIndex];
+            // Before diving into the child, increment the childIndex for the current node for the next iteration
+            stack.top().second++;
+            // Add the child to the stack to process it in the next iteration
+            stack.emplace(&nextChild, 0);
+        }
     }
 }
