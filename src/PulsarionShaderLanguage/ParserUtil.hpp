@@ -87,6 +87,7 @@ namespace Pulsarion::Shader::Parsing
         ExpectedColonForTernaryOperator,
         TernaryOperatorRequiresCompatibleOperands,
         TernaryOperatorRequiresBooleanCondition,
+        ExpectedOpeningParenthesisForFunctionCall,
     };
 
     enum class ErrorSource

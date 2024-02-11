@@ -199,6 +199,9 @@ namespace Pulsarion::Shader::Parsing
         case ErrorType::TernaryOperatorRequiresCompatibleOperands:
             return "TernaryOperatorRequiresCompatibleOperands";
         case ErrorType::TernaryOperatorRequiresBooleanCondition:
+            return "TernaryOperatorRequiresBooleanCondition";
+        case ErrorType::ExpectedOpeningParenthesisForFunctionCall:
+            return "ExpectedOpeningParenthesisForFunctionCall";
         default:
             return "Unknown";
         }

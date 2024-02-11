@@ -89,7 +89,7 @@ namespace Pulsarion::Shader
         {
 
         public:
-            explicit LexerState(class Lexer&& lexer)
+            explicit LexerState(Lexer&& lexer)
                 : CurrentTokenIndex(0), Lexer(lexer), EndOfStreamIndex(0xFFFFFFFF) // An arbitrary large number
             {
             }

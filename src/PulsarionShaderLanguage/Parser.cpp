@@ -243,11 +243,10 @@ namespace Pulsarion::Shader
                                        Parsing::ErrorType::UnexpectedExtraClosingBrace);
             return result;
         }
-
-        if (const auto it = std::find_if(
-                    result.Errors.begin(), result.Errors.end(), [](const Parsing::Error &error)
-                    { return error.Type == Parsing::ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace && error.NestingLevel == 0; });
-            it != result.Errors.end())
+        const auto it = std::find_if(
+                            result.Errors.begin(), result.Errors.end(), [](const Parsing::Error &error)
+                            { return error.Type == Parsing::ErrorType::UnexpectedEndOfFileWhenFindingClosingBrace && error.NestingLevel == 0; });
+        if (it != result.Errors.end())
         {
             // We remove the error, because we don't expect a closing brace
             result.Errors.erase(it);
@@ -992,7 +991,7 @@ namespace Pulsarion::Shader
             // It can also be the case that it is a C++ style declaration, so we try to parse it, if it wasn't auto
             if (m_LexerState.Consume(TokenType::LeftParenthesis))
             {
-                PULSARION_ASSERT(state.Children.size() > 0, "There should be at least one child, since we have an identifier");
+                PULSARION_ASSERT(!state.Children.empty(), "There should be at least one child, since we have an identifier");
                 if (state.Children[0].Type == NodeType::KeywordAuto)
                 {
                     // We can return the result, since it is not a valid expression
@@ -1308,16 +1307,24 @@ namespace Pulsarion::Shader
                 SyntaxNode templateArgumentList(NodeType::TemplateArgumentList, token.Location);
                 do {
                     auto expr = ParsePrimaryExpression(); // Template arguments can only be primary expressions
+                    if (!expr.Root.has_value())
+                        return result; // This will automatically backtrack
+
                     state.Errors.splice(state.Errors.end(), std::move(expr.Errors));
                     state.Warnings.splice(state.Warnings.end(), std::move(expr.Warnings));
-                    if (!expr.Root.has_value())
-                        return result;
 
                     templateArgumentList.Children.push_back(std::move(expr.Root.value()));
                 } while (m_LexerState.Consume(TokenType::Comma));
 
                 if (!m_LexerState.Consume(TokenType::GreaterThan))
-                    return result;
+                    return result; // We just treat it as a normal unary, and it will automatically backtrack
+
+                // Since we fallthrough we need to check the Left Parenthesis
+                if (m_LexerState.Peek().Type != TokenType::LeftParenthesis)
+                {
+                    state.Errors.emplace_back(state.ToLocation(token.Location), Parsing::ErrorSource::Expression, ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedOpeningParenthesisForFunctionCall);
+                    return Parsing::ExpressionResult(Parsing::ExpressionResult::PrimType::Failed, std::nullopt, std::move(state.Errors), std::move(state.Warnings));
+                }
 
                 state.AddChild(std::move(templateArgumentList));
              } // Fallthrough
@@ -1587,10 +1594,9 @@ namespace Pulsarion::Shader
 
     void Parser::LexerState::ReadTokens(std::size_t count)
     {
-        Token token;
         for (std::size_t i = 0; i < count;)
         {
-            token = Lexer.NextToken();
+            Token token = Lexer.NextToken();
             switch (token.Type)
             {
             case TokenType::Comment:
