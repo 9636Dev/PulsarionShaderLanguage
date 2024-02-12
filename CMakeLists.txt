@@ -22,6 +22,8 @@ set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/CodeGeneration.cpp
     src/PulsarionShaderLanguage/Optimizer.hpp
     src/PulsarionShaderLanguage/Optimizer.cpp
+    src/PulsarionShaderLanguage/TypeCheck.hpp
+    src/PulsarionShaderLanguage/TypeCheck.cpp
 )
 
 if (NOT DEFINED PULSARION_LIBRARY_TYPE)

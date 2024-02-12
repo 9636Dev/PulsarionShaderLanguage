@@ -206,4 +206,50 @@ namespace Pulsarion::Shader::Parsing
             return "Unknown";
         }
     }
+
+    std::optional<Identifier> ParseIdentifierFromNode(const SyntaxNode& node, const std::vector<std::string>& namespaces)
+    {
+        if (node.Type != NodeType::Identifier)
+            return std::nullopt;
+
+        PULSARION_ASSERT(node.Content.has_value(), "Expected content for identifier node");
+        Identifier result;
+        result.Namespace = namespaces; // We just copy the current namespace
+        result.Name = node.Content->Value;
+        if (node.Children.empty())
+            return result;
+
+        if (node.Children.size() == 2)
+        {
+            // There is trailing, so we need to parse it
+            auto trailing = node.Children[1];
+            PULSARION_ASSERT(trailing.Type == NodeType::IdentifierTrailing, "Expected identifier trailing node");
+            for (const auto& child : trailing.Children)
+            {
+                PULSARION_ASSERT(child.Content.has_value(), "Expected content for identifier trailing node");
+                result.Trailing.push_back(child.Content->Value);
+            }
+        }
+
+        if (node.Children[0].Type != NodeType::Namespace)
+            return result;
+
+        auto nmspcs = node.Children[0].Children;
+        PULSARION_ASSERT(nmspcs[0].Content.has_value(), "Expected content in namespace node");
+
+        //NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        if (nmspcs[0].Content->Type == TokenType::ColonColon) // Clang-tidy is wrong here
+        {
+            result.Namespace.clear();
+            nmspcs.erase(nmspcs.begin());
+        }
+
+        for (const auto& nms : nmspcs)
+        {
+            PULSARION_ASSERT(nms.Content.has_value(), "Namespace token in node does not contain value!");
+            result.Namespace.push_back(nms.Content->Value);
+        }
+
+        return result;
+    }
 }

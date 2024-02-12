@@ -214,4 +214,64 @@ namespace Pulsarion::Shader::Parsing
 
         bool operator==(const ExpressionResult& other) const { return Type == other.Type && Root == other.Root; }
     };
+
+    struct Identifier
+    {
+        std::vector<std::string> Namespace;
+        std::string Name;
+        std::vector<std::string> Trailing; // This is for a.b, where b will be trailing
+        // TODO: Support template arguments
+
+        Identifier() = default;
+    };
+
+    enum class VariablePrimType
+    {
+        Int,
+        UInt,
+        Long,
+        ULong,
+        LongLong,
+        ULongLong,
+        Float,
+        Double,
+        Bool,
+        Void,
+        Struct,
+        Unknown,
+    };
+
+    struct VariableType
+    {
+        VariablePrimType Type;
+        // Not present if the type is not an array, for now we only support arrays of fixed size
+        std::optional<std::size_t> ArraySize;
+    };
+
+    struct FunctionType
+    {
+        struct Argument
+        {
+            Identifier Name;
+            VariableType Type;
+        };
+
+        VariableType ReturnType;
+        std::vector<Argument> Arguments;
+    };
+
+    struct StructType
+    {
+        std::unordered_map<Identifier, VariableType> Variables;
+        std::unordered_map<Identifier, FunctionType> Functions;
+    };
+
+    struct TypeInfo
+    {
+        std::unordered_map<Identifier, VariableType> Variables;
+        std::unordered_map<Identifier, FunctionType> Functions;
+        std::unordered_map<Identifier, StructType> Structs;
+    };
+
+    PULSARION_SHADER_LANGUAGE_API std::optional<Identifier> ParseIdentifierFromNode(const SyntaxNode& node, const std::vector<std::string>& namespaces);
 }

@@ -625,7 +625,6 @@ namespace Pulsarion::Shader
             // If the consume fails it doesn't update the token, so its fine
             while (m_LexerState.Consume(TokenType::ColonColon, token))
             {
-                namespaceNode.Children.emplace_back(NodeType::Token, token.Location, token);
                 token = m_LexerState.Read();
                 if (token.Type != TokenType::Identifier)
                 {
@@ -650,7 +649,7 @@ namespace Pulsarion::Shader
         }
 
 
-        SyntaxNode trailingNode(NodeType::Identifier, token.Location);
+        SyntaxNode trailingNode(NodeType::IdentifierTrailing, token.Location);
         // Either :: or . can be used to access members, but they don't mix
 
         if (allowTrailing)
@@ -659,7 +658,6 @@ namespace Pulsarion::Shader
             {
                 if (!m_LexerState.Consume(TokenType::Dot, token))
                     break;
-                trailingNode.Children.emplace_back(NodeType::Token, token.Location, token);
                 token = m_LexerState.Read();
                 if (token.Type != TokenType::Identifier)
                 {

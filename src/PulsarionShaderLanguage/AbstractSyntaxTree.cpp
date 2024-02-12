@@ -21,6 +21,8 @@ namespace Pulsarion::Shader
             return "BooleanLiteral";
         case NodeType::Identifier:
             return "Identifier";
+        case NodeType::IdentifierTrailing:
+            return "IdentifierTrailing";
         case NodeType::Namespace:
             return "Namespace";
         case NodeType::NumericNegation:

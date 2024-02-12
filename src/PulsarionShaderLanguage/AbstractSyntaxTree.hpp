@@ -17,6 +17,7 @@ namespace Pulsarion::Shader
         NumericLiteral,
         BooleanLiteral,
         Identifier,
+        IdentifierTrailing,
         Namespace,
         BooleanNegation,
         NumericNegation,
