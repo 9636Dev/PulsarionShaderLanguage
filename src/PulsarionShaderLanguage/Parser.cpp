@@ -237,6 +237,9 @@ namespace Pulsarion::Shader
         if (!result.Root.has_value())
             return result;
 
+        // We change the scope to a root node
+        result.Root->Type = NodeType::Root;
+
         if (result.Errors.empty())
         {
             result.Errors.emplace_back(result.Root->Location, Parsing::ErrorSource::Scope, ErrorSeverity::Fatal,
@@ -255,6 +258,7 @@ namespace Pulsarion::Shader
         // It has fails since there are other errors, but for now we just return the result
         if (!result.Errors.empty())
             return result;
+
 
         return result;
     }

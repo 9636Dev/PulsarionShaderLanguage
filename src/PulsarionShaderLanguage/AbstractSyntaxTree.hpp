@@ -11,6 +11,7 @@ namespace Pulsarion::Shader
 {
     enum class NodeType
     {
+        Root,
         Scope,
         Statement,
         Token,

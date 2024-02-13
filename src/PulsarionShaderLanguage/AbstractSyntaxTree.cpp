@@ -9,6 +9,8 @@ namespace Pulsarion::Shader
     {
         switch (type)
         {
+        case NodeType::Root:
+            return "Root";
         case NodeType::Scope:
             return "Scope";
         case NodeType::Statement:

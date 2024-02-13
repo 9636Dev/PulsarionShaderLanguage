@@ -313,6 +313,7 @@ namespace Pulsarion::Shader
 
     Token Lexer::ReadComment()
     {
+        // TODO: Reads beyond the end of the file.
         const std::size_t startIndex = m_Index;
         const std::size_t startColumn = m_Column;
 
@@ -335,7 +336,7 @@ namespace Pulsarion::Shader
         const std::size_t startIndex = m_Index;
         const std::size_t startColumn = m_Column;
 
-        while (m_Index < m_Source.size() && (m_Source[m_Index] != '*'))
+        while (m_Index + 1 < m_Source.size() && (m_Source[m_Index] != '*' || m_Source[m_Index + 1] != '/'))
         {
             (void)NextChar();
         }

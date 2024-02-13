@@ -7,22 +7,12 @@ using namespace Pulsarion::Shader;
 class LexerTest : public ::testing::Test
 {
 protected:
-    std::string source;
-
-    Lexer lexer();
-
-    LexerTest()
-    {
-    }
-
-    void SetUp() override
-    {
-    }
+    LexerTest() = default;
 };
 
 TEST_F(LexerTest, TestInit)
 {
-    const std::string emptyStr = "";
+    const std::string emptyStr;
     Lexer lexer(emptyStr);
     EXPECT_EQ(lexer.NextToken().Type, TokenType::EndOfFile);
 
