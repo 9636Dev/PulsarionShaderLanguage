@@ -8,6 +8,6 @@ namespace Pulsarion::Shader
     {
         std::stack<SyntaxNode*> stack; // We don't need to free the memory of the nodes, so we can use raw pointers
         stack.push(&ast);
-
+        return std::make_pair("", nullptr);
     }
 }

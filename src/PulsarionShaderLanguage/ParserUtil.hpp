@@ -133,8 +133,8 @@ namespace Pulsarion::Shader::Parsing
         }
 
 
-        static PULSARION_SHADER_LANGUAGE_API std::string SourceToString(ErrorSource source);
-        static PULSARION_SHADER_LANGUAGE_API std::string TypeToString(ErrorType type);
+        static std::string SourceToString(ErrorSource source);
+        static std::string TypeToString(ErrorType type);
     };
 
     struct Result
