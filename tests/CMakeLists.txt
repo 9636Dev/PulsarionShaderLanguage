@@ -12,13 +12,9 @@ add_executable(PulsarionShaderLanguageTests ${PULSARION_SHADER_LANGUAGE_TEST_SOU
 target_link_libraries(PulsarionShaderLanguageTests PRIVATE PulsarionCore)
 target_link_libraries(PulsarionShaderLanguageTests PRIVATE PulsarionShaderLanguage)
 
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG main
-)
-FetchContent_MakeAvailable(googletest)
+if (NOT TARGET gtest_main)
+    add_subdirectory(vendor/googletest)
+endif()
 
 enable_testing()
 include(GoogleTest)
