@@ -1,12 +1,13 @@
 #pragma once
 
+#include "Core.hpp"
 #include <string>
 #include <filesystem>
 #include <unordered_map>
 
 namespace Pulsarion::Shader
 {
-    class Preprocessor
+    class PULSARION_SHADER_LANGUAGE_API Preprocessor
     {
     public:
         explicit Preprocessor(std::string source, std::filesystem::path path) : m_Source(std::move(source)), m_Path(std::move(path)) {}

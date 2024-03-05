@@ -164,7 +164,7 @@ namespace Pulsarion::Shader
     }
 
 
-    void AbstractSyntaxTree::Traverse(const std::function<bool(SyntaxNode&, TraversalPhase)>& callback)
+    void AbstractSyntaxTree::Traverse(const TraversalFunction& callback)
     {
         std::stack<std::pair<SyntaxNode*, size_t>> stack; // Pair of node pointer and child index
 
@@ -176,19 +176,19 @@ namespace Pulsarion::Shader
             auto& [currentNode, childIndex] = stack.top();
 
             // If this is the first time visiting this node, invoke onNodeVisit with `TraversalPhase::Advance`
-            if (childIndex == 0 && callback(*currentNode, TraversalPhase::Advance))
+            auto res = callback(*currentNode, TraversalPhase::Advance);
+            if (childIndex == 0 && res.StopExploringSubtree)
             {
                 stack.pop(); // Stop processing this node and its subtree
                 continue;
             }
+            childIndex += res.SkipChildren; // How many children to skip
 
             // If all children of this node have been processed, or if it has no children
             if (childIndex >= currentNode->Children.size())
             {
-                if (callback(*currentNode, TraversalPhase::Return))
-                {
-                    // Optionally handle the return phase, useful for post-processing
-                }
+                auto res = callback(*currentNode, TraversalPhase::Return);
+                // Currently the result is ignored, but it could be used to stop the traversal
                 stack.pop(); // Move back up the tree
                 continue;
             }

@@ -103,18 +103,30 @@ namespace Pulsarion::Shader
         }
     };
 
-    enum class TraversalPhase
-    {
-        Advance, // When it advances to the next node
-        Return, // When it goes back to the parent node
-    };
 
     class PULSARION_SHADER_LANGUAGE_API AbstractSyntaxTree
     {
     public:
+        enum class TraversalPhase
+        {
+            Advance, // When it advances to the next node
+            Return, // When it goes back to the parent node
+        };
+
+        struct TraversalResult
+        {
+            bool StopExploringSubtree = false;
+            size_t SkipChildren = 0; // How many children to skip
+
+            TraversalResult(bool stopExploringSubtree = false, size_t skipChildren = 0)
+                : StopExploringSubtree(stopExploringSubtree), SkipChildren(skipChildren)
+            {
+            }
+        };
+        using TraversalFunction = std::function<TraversalResult(SyntaxNode&, TraversalPhase)>;
         explicit AbstractSyntaxTree(SyntaxNode& root) : m_Root(root) {}
 
-        void Traverse(const std::function<bool(SyntaxNode&, TraversalPhase)>& callback);
+        void Traverse(const TraversalFunction& callback);
 
     private:
         SyntaxNode& m_Root;

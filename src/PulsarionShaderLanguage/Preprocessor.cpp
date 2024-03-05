@@ -1,4 +1,3 @@
-
 #include "Preprocessor.hpp"
 #include "PulsarionCore/File.hpp"
 #include "PulsarionCore/Log.hpp"
@@ -13,6 +12,15 @@ namespace Pulsarion::Shader
         while (index < source.size() && (source[index] == ' ' || source[index] == '\t'))
         {
             ++index;
+        }
+    }
+
+    static void SkipWhitespace(const std::string& source, std::string& result, std::size_t& sourceIndex)
+    {
+        while (sourceIndex < source.size() && (source[sourceIndex] == ' ' || source[sourceIndex] == '\t'))
+        {
+            result += source[sourceIndex];
+            ++sourceIndex;
         }
     }
 
@@ -42,7 +50,7 @@ namespace Pulsarion::Shader
 
         while (curIndex < source.size())
         {
-            SkipWhitespace(source, curIndex);
+            SkipWhitespace(source, result, curIndex);
 
             if (source[curIndex] == '#')
             {
@@ -83,7 +91,7 @@ namespace Pulsarion::Shader
                         PULSARION_LOG_ERROR("Invalid include path: {}", includePath);
                         return "";
                     }
-                    File file(path.parent_path() / includePath.substr(1, includePath.size() - 2));
+                    File file((path.parent_path() / std::filesystem::path(includePath.substr(1, includePath.size() - 2))).string());
                     if (!file.Exists())
                     {
                         PULSARION_LOG_ERROR("Failed to include file: {}", includePath);
