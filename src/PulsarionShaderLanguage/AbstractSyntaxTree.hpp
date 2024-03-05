@@ -107,7 +107,6 @@ namespace Pulsarion::Shader
     {
         Advance, // When it advances to the next node
         Return, // When it goes back to the parent node
-        Deepen, // When it explores the children of the current node
     };
 
     class PULSARION_SHADER_LANGUAGE_API AbstractSyntaxTree

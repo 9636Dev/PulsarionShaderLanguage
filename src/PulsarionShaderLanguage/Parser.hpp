@@ -32,8 +32,6 @@ namespace Pulsarion::Shader
     // Parsing
     // =====================================================================================================================
 
-
-
         /// <summary>
         /// Parses the entire shader source code.
         /// </summary>

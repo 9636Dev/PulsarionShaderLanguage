@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <list>
+#include <functional>
 
 namespace Pulsarion::Shader::Parsing
 {
@@ -223,7 +224,44 @@ namespace Pulsarion::Shader::Parsing
         // TODO: Support template arguments
 
         Identifier() = default;
+
+        bool operator==(const Identifier& other) const
+        {
+            if (Namespace.size() != other.Namespace.size())
+                return false;
+            for (std::size_t i = 0; i < Namespace.size(); i++)
+                if (Namespace[i] != other.Namespace[i])
+                    return false;
+            if (Name != other.Name)
+                return false;
+            if (Trailing.size() != other.Trailing.size())
+                return false;
+            for (std::size_t i = 0; i < Trailing.size(); i++)
+                if (Trailing[i] != other.Trailing[i])
+                    return false;
+            return true;
+        }
     };
+
+}
+
+namespace std {
+    template<>
+    struct hash<Pulsarion::Shader::Parsing::Identifier> {
+        size_t operator()(const Pulsarion::Shader::Parsing::Identifier& id) const noexcept {
+            size_t hash = 0;
+            for (const auto& ns : id.Namespace)
+                hash ^= std::hash<std::string>{}(ns);
+            hash ^= std::hash<std::string>{}(id.Name);
+            for (const auto& trailing : id.Trailing)
+                hash ^= std::hash<std::string>{}(trailing);
+            return hash;
+        }
+    };
+}
+
+namespace Pulsarion::Shader::Parsing
+{
 
     enum class VariablePrimType
     {
@@ -244,6 +282,7 @@ namespace Pulsarion::Shader::Parsing
     struct VariableType
     {
         VariablePrimType Type;
+        Identifier TypeName;
         // Not present if the type is not an array, for now we only support arrays of fixed size
         std::optional<std::size_t> ArraySize;
     };
@@ -273,5 +312,7 @@ namespace Pulsarion::Shader::Parsing
         std::unordered_map<Identifier, StructType> Structs;
     };
 
+    PULSARION_SHADER_LANGUAGE_API VariablePrimType ParseVariablePrimType(const SyntaxNode& node);
     PULSARION_SHADER_LANGUAGE_API std::optional<Identifier> ParseIdentifierFromNode(const SyntaxNode& node, const std::vector<std::string>& namespaces);
 }
+

@@ -3,30 +3,36 @@
 #include <PulsarionCore/Assert.hpp>
 #include <PulsarionCore/Log.hpp>
 
-#include <unordered_map>
-
 namespace Pulsarion::Shader
 {
-    const static std::unordered_map<std::string, TokenType> LiteralTokens = {
-        { "true", TokenType::True },
-        { "false", TokenType::False },
-        { "if", TokenType::If },
-        { "else", TokenType::Else },
-        { "for", TokenType::For },
-        { "while", TokenType::While },
-        { "do", TokenType::Do },
-        { "break", TokenType::Break },
-        { "return", TokenType::Return },
-        { "continue", TokenType::Continue },
-        { "switch", TokenType::Switch },
-        { "case", TokenType::Case },
-        { "default", TokenType::Default },
-        { "struct", TokenType::Struct },
-        { "using", TokenType::Using },
-        { "auto", TokenType::Auto },
-        { "namespace", TokenType::Namespace },
-        // Just basic tokens, add more later
-    };
+    TokenType FindLiteralToken(const std::string& literal) noexcept
+    {
+        const static std::pair<std::string, TokenType> LiteralTokens[] = {
+            { "true", TokenType::True },
+            { "false", TokenType::False },
+            { "if", TokenType::If },
+            { "else", TokenType::Else },
+            { "for", TokenType::For },
+            { "while", TokenType::While },
+            { "do", TokenType::Do },
+            { "break", TokenType::Break },
+            { "return", TokenType::Return },
+            { "continue", TokenType::Continue },
+            { "switch", TokenType::Switch },
+            { "case", TokenType::Case },
+            { "default", TokenType::Default },
+            { "struct", TokenType::Struct },
+            { "using", TokenType::Using },
+            { "auto", TokenType::Auto },
+            { "namespace", TokenType::Namespace },
+        };
+        for (const auto& pair : LiteralTokens)
+        {
+            if (pair.first == literal)
+                return pair.second;
+        }
+        return TokenType::Unknown;
+    }
 
     Lexer::Lexer(std::string source)
         : m_Source(std::move(source))
@@ -507,60 +513,41 @@ namespace Pulsarion::Shader
         if (m_Index >= m_Source.size()) // Broken because EOF
             return {hasDecimal ? TokenType::NumberFloat : TokenType::NumberInt, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
 
-        // It could end with f, F, d, D, l, L, u, U, ul, UL, lu, LU, ll, LL, or ull, ULL.
-
-        if (CurrentChar() == 'f' || CurrentChar() == 'F')
-        {
-            (void)NextChar();
-            return {TokenType::NumberFloat, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-        }
-
-        if (CurrentChar() == 'd' || CurrentChar() == 'D')
-        {
-            (void)NextChar();
-            return {TokenType::NumberDouble, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-        }
-
-        if (CurrentChar() == 'l' || CurrentChar() == 'L')
-        {
-            NextChar();
-
-            if (hasDecimal) // IMPORTANT: Make sure we consume first, even if it is invalid.
-                return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-
-            if (CurrentChar() == 'l' || CurrentChar() == 'L')
-            {
-                NextChar();
-                return {TokenType::NumberLongLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-            }
-
-            return {TokenType::NumberLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-        }
-
-        if (CurrentChar() == 'u' || CurrentChar() == 'U')
-        {
-            NextChar();
-
-            if (hasDecimal)
-                return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-            // We can't check for signeness yet, so just make sure it isn't a decimal
-            if (CurrentChar() == 'l' || CurrentChar() == 'L')
-            {
-                NextChar();
-                if (CurrentChar() == 'l' || CurrentChar() == 'L')
-                {
-                    NextChar();
-                    return {TokenType::NumberUnsignedLongLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-                }
-                return {TokenType::NumberUnsignedLong, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-            }
-            return {TokenType::NumberUnsigned, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
-        }
-
-        // Otherwise it is a valid number, unless it is followed by alpha character.
         if (IsIdentifierStart(CurrentChar()))
-            return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+        {
+            (void)NextChar();
+            // It could end with f, F, d, D, l, L, u, U, ul, UL, lu, LU, ll, LL, or ull, ULL.
+            auto ending = ReadIdentifier(); // We can just read everything until the next whitespace or non-identifier character.
+            const static std::pair<std::string, TokenType> numberEndings[] = {
+                { "f", TokenType::NumberFloat },
+                { "F", TokenType::NumberFloat },
+                { "d", TokenType::NumberDouble },
+                { "D", TokenType::NumberDouble },
+                { "l", TokenType::NumberLong },
+                { "L", TokenType::NumberLong },
+                { "u", TokenType::NumberUnsigned },
+                { "U", TokenType::NumberUnsigned },
+                { "ul", TokenType::NumberUnsignedLong },
+                { "UL", TokenType::NumberUnsignedLong },
+                { "lu", TokenType::NumberUnsignedLong },
+                { "LU", TokenType::NumberUnsignedLong },
+                { "ll", TokenType::NumberLongLong },
+                { "LL", TokenType::NumberLongLong },
+                { "ull", TokenType::NumberUnsignedLongLong },
+                { "ULL", TokenType::NumberUnsignedLongLong },
+            };
 
+            for (const auto& pair : numberEndings)
+            {
+                if (pair.first == ending.Value)
+                    return {pair.second, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+            }
+
+            // If it is not a valid ending then it is invalid.
+            return {TokenType::InvalidNumber, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
+        }
+
+        // Default is float and int.
         return {hasDecimal ? TokenType::NumberFloat : TokenType::NumberInt, m_Source.substr(startIndex, m_Index - startIndex), m_Line, startColumn, startIndex};
     }
 
@@ -576,9 +563,9 @@ namespace Pulsarion::Shader
         std::string identifier = m_Source.substr(startIndex, m_Index - startIndex);
 
         // Check if it is a keyword.
-        const auto it = LiteralTokens.find(identifier);
-        if (it != LiteralTokens.end())
-            return {it->second, identifier, m_Line, startColumn, startIndex};
+        TokenType keyword = FindLiteralToken(identifier);
+        if (keyword != TokenType::Unknown)
+            return {keyword, identifier, m_Line, startColumn, startIndex};
 
 
         return {TokenType::Identifier, identifier, m_Line, startColumn, startIndex};

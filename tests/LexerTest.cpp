@@ -78,56 +78,57 @@ TEST_F(LexerTest, TestCommentParsing)
 
 TEST_F(LexerTest, TestNumberParsing)
 {
-    const std::string src =
-        "0123456789\n"
-        "0b1010101010101010101010101010101010101010101010101010101010101010\n" // Binary
-        "0b1010102010101010101010101010101010101010101010101010101010101010\n" // Invalid binary
-        "0x1234567890ABCDEFabcdef\n" // Hex
-        "0x1234567890ABCDEFabcdefp1234567890\n" // Invalid hex 'p' character
-        "0o12345670\n" // Octal
-        "0o12345678\n" // Invalid octal"
-        "5f\n" // Float
-        "5F\n"
-        "5.0f\n"
-        "5.0F\n"
-        "5.0e5f\n"
-        "5.0e5F\n"
-        "2.0e-5f\n"
-        "5e5f\n"
-        "5e5F\n"
-        "2e-5f\n"
-        "5.0e+5f\n"
-        "5.0e+5F\n"
-        "2.0e-5f\n"
-        "5.0e5\n"
-        "5.0.0\n" // Invalid float
-        "5.0e5.0\n" // Invalid float
-        "5d\n" // Double
-        "5D\n"
-        "5.0d\n"
-        "5.0D\n"
-        "5.0e5d\n"
-        "5.0e5D\n"
-        "2.0e-5d\n"
-        "5e5d\n"
-        "5e5D\n"
-        "2e-5d\n"
-        "5.0e+5d\n"
-        "5.0e+5D\n"
-        "2.0e-5d\n"
-        "5.0e5d\n"
-        "5.0.0\n" // Invalid double
-        "5.0e5.0\n" // Invalid double
-        "5l\n" // Long
-        "5L\n"
-        "5ul\n" // Unsigned long
-        "5UL\n"
-        "5u" // Unsigned
-        "5U\n"
-        "4ull\n" // Unsigned long long
-        "4ULL\n"
-        "3ll"
-        "3LL\n";
+    const std::string src = R"(
+        0123456789
+        0b1010101010101010101010101010101010101010101010101010101010101010
+        0b1010102010101010101010101010101010101010101010101010101010101010
+        0x1234567890ABCDEFabcdef
+        0x1234567890ABCDEFabcdefp1234567890
+        0o12345670
+        0o1234568
+        5f
+        5F
+        5.0f
+        5.0F
+        5.0e5f
+        5.0e5F
+        2.0e-5f
+        5e5f
+        5e5F
+        2e-5f
+        5.0e+5f
+        5.0e+5F
+        2.0e-5f
+        5.0e5
+        5.0.0
+        5.0e5.0
+        5d
+        5D
+        5.0d
+        5.0D
+        5.0e5d
+        5.0e5D
+        2.0e-5d
+        5e5d
+        5e5D
+        2e-5d
+        5.0e+5d
+        5.0e+5D
+        2.0e-5d
+        5.0e5d
+        5.0.0
+        5.0e5.0
+        5l
+        5L
+        5ul
+        5UL
+        5u
+        5U
+        4ull
+        4ULL
+        3ll
+        3LL
+    )";
 
     // Technically mixing upper and lower cases are allowed, but we won't test that.
 

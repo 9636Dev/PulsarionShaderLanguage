@@ -566,24 +566,27 @@ namespace Pulsarion::Shader
         }
 
         auto argumentList = SyntaxNode(NodeType::FunctionArgumentList, token.Location);
-        do
+        if (m_LexerState.Peek().Type != TokenType::RightParenthesis)
         {
-            auto argumentType = ParseIdentifier(true, false);
-            argumentType.Nest();
-            if (!argumentType.Success())
+            do
             {
+                auto argumentType = ParseIdentifier(true, false);
+                argumentType.Nest();
+                if (!argumentType.Success())
+                {
+                    state.AddErrors(std::move(argumentType));
+                    state.Errors.emplace_back(argumentType.Root->Location, Parsing::ErrorSource::Declaration,
+                        ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedIdentifierForArgumentType);
+                    return state.ToErrorResult(m_LexerState.Peek().Location);
+                }
                 state.AddErrors(std::move(argumentType));
-                state.Errors.emplace_back(argumentType.Root->Location, Parsing::ErrorSource::Declaration,
-                    ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedIdentifierForArgumentType);
-                return state.ToErrorResult(m_LexerState.Peek().Location);
-            }
-            state.AddErrors(std::move(argumentType));
 
-            // There is optional argumentName, so we try to parse it, but we don't care if it fails
-            auto argumentName = ParseIdentifier(false, false);
+                // There is optional argumentName, so we try to parse it, but we don't care if it fails
+                auto argumentName = ParseIdentifier(false, false);
 
-            argumentList.Children.emplace_back(std::move(argumentType.Root.value()));
-        } while (m_LexerState.Consume(TokenType::Comma));
+                argumentList.Children.emplace_back(std::move(argumentType.Root.value()));
+            } while (m_LexerState.Consume(TokenType::Comma));
+        }
 
         if (!m_LexerState.Consume(TokenType::RightParenthesis))
         {
@@ -805,36 +808,39 @@ namespace Pulsarion::Shader
             return state.ToErrorResult(m_LexerState.Peek().Location);
         }
 
-        // We have a valid function declaration, we have a list of 2 identifiers separated by commas
         SyntaxNode argumentList(NodeType::FunctionArgumentList, token.Location);
-        do {
-            auto argumentType = ParseIdentifier(true, false);
-            argumentType.Nest();
-            if (!argumentType.Success())
-            {
+        if (m_LexerState.Peek().Type != TokenType::RightParenthesis)
+        {
+            // We have a valid function declaration, we have a list of 2 identifiers separated by commas
+            do {
+                auto argumentType = ParseIdentifier(true, false);
+                argumentType.Nest();
+                if (!argumentType.Success())
+                {
+                    state.AddErrors(std::move(argumentType));
+                    state.Errors.emplace_back(m_LexerState.Peek().Location, Parsing::ErrorSource::Function, ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedIdentifierForArgumentType);
+                    return state.ToErrorResult(m_LexerState.Peek().Location);
+                }
                 state.AddErrors(std::move(argumentType));
-                state.Errors.emplace_back(m_LexerState.Peek().Location, Parsing::ErrorSource::Function, ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedIdentifierForArgumentType);
-                return state.ToErrorResult(m_LexerState.Peek().Location);
-            }
-            state.AddErrors(std::move(argumentType));
 
-            // The name can only be one identifier token
-            auto argumentName = ParseIdentifier(false, false);
-            argumentName.Nest();
-            if (!argumentName.Success())
-            {
+                // The name can only be one identifier token
+                auto argumentName = ParseIdentifier(false, false);
+                argumentName.Nest();
+                if (!argumentName.Success())
+                {
+                    state.AddErrors(std::move(argumentName));
+                    state.Errors.emplace_back(m_LexerState.Peek().Location, Parsing::ErrorSource::Function, ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedIdentifierForArgumentName);
+                    return state.ToErrorResult(m_LexerState.Peek().Location);
+                }
                 state.AddErrors(std::move(argumentName));
-                state.Errors.emplace_back(m_LexerState.Peek().Location, Parsing::ErrorSource::Function, ErrorSeverity::Fatal, Parsing::ErrorType::ExpectedIdentifierForArgumentName);
-                return state.ToErrorResult(m_LexerState.Peek().Location);
-            }
-            state.AddErrors(std::move(argumentName));
 
-            SyntaxNode argument(NodeType::FunctionArgument, token.Location);
-            argument.Children.emplace_back(std::move(argumentType.Root.value()));
-            argument.Children.emplace_back(std::move(argumentName.Root.value()));
+                SyntaxNode argument(NodeType::FunctionArgument, token.Location);
+                argument.Children.emplace_back(std::move(argumentType.Root.value()));
+                argument.Children.emplace_back(std::move(argumentName.Root.value()));
 
-            argumentList.Children.emplace_back(std::move(argument));
-        } while (m_LexerState.Consume(TokenType::Comma));
+                argumentList.Children.emplace_back(std::move(argument));
+            } while (m_LexerState.Consume(TokenType::Comma));
+        }
 
         if (!m_LexerState.Consume(TokenType::RightParenthesis))
         {
@@ -976,7 +982,7 @@ namespace Pulsarion::Shader
         // We have a valid type for the assignment.
 
         // There should be another identifier, we current don't support unpackings auto [a, b] = ...
-        auto identifier = ParseIdentifier();
+        auto identifier = ParseIdentifier(false, false); // These should be plain identifier names
         identifier.Nest();
         if (!identifier.Success())
         {

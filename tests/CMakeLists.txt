@@ -19,6 +19,7 @@ endif()
 enable_testing()
 include(GoogleTest)
 
+
 target_link_libraries(PulsarionShaderLanguageTests PRIVATE gtest_main)
 
 gtest_discover_tests(PulsarionShaderLanguageTests)

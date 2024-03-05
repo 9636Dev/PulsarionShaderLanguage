@@ -1,8 +1,9 @@
 #include "ParserUtil.hpp"
 
+#include <unordered_map>
+
 namespace Pulsarion::Shader::Parsing
 {
-
     std::string Error::SourceToString(ErrorSource source)
     {
         switch (source)
@@ -205,6 +206,36 @@ namespace Pulsarion::Shader::Parsing
         default:
             return "Unknown";
         }
+    }
+
+    VariablePrimType ParseVariablePrimType(const SyntaxNode& node)
+    {
+        if (!node.Children.empty())
+            return VariablePrimType::Unknown; // PrimType nodes should not have children
+
+        // TODO: Maybe some kind of hash instead of string comparison
+        PULSARION_ASSERT(node.Content.has_value(), "Expected content for prim type node");
+        if (node.Content->Value == "int")
+            return VariablePrimType::Int;
+        if (node.Content->Value == "float")
+            return VariablePrimType::Float;
+        if (node.Content->Value == "bool")
+            return VariablePrimType::Bool;
+        if (node.Content->Value == "void")
+            return VariablePrimType::Void;
+        if (node.Content->Value == "uint")
+            return VariablePrimType::UInt;
+        if (node.Content->Value == "double")
+            return VariablePrimType::Double;
+        if (node.Content->Value == "long")
+            return VariablePrimType::Long;
+        if (node.Content->Value == "ulong")
+            return VariablePrimType::ULong;
+        if (node.Content->Value == "longlong")
+            return VariablePrimType::LongLong;
+        if (node.Content->Value == "ulonglong")
+            return VariablePrimType::ULongLong;
+        return VariablePrimType::Unknown;
     }
 
     std::optional<Identifier> ParseIdentifierFromNode(const SyntaxNode& node, const std::vector<std::string>& namespaces)
