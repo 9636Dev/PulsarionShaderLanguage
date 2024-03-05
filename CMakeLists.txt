@@ -8,6 +8,8 @@ set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/Core.cpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.cpp
+    src/PulsarionShaderLanguage/Preprocessor.hpp
+    src/PulsarionShaderLanguage/Preprocessor.cpp
     src/PulsarionShaderLanguage/Token.hpp
     src/PulsarionShaderLanguage/Token.cpp
     src/PulsarionShaderLanguage/Lexer.hpp
@@ -36,6 +38,11 @@ add_library(PulsarionShaderLanguage ${PULSARION_LIBRARY_TYPE} ${PULSARION_SHADER
 if (PULSARION_LIBRARY_TYPE STREQUAL "SHARED")
     target_compile_definitions(PulsarionShaderLanguage PUBLIC PULSARION_SHADER_LANGUAGE_BUILD_DLL)
 endif()
+
+add_subdirectory(vendor/tomlplusplus)
+add_dependencies(PulsarionShaderLanguage tomlplusplus::tomlplusplus)
+target_compile_definitions(tomlplusplus_tomlplusplus INTERFACE TOML_EXCEPTIONS=0)
+target_link_libraries(PulsarionShaderLanguage PRIVATE tomlplusplus::tomlplusplus)
 
 target_include_directories(PulsarionShaderLanguage PUBLIC src)
 
