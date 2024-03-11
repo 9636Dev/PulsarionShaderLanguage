@@ -60,12 +60,13 @@ TEST_F(LexerTest, TestInit)
 
 TEST_F(LexerTest, TestCommentParsing)
 {
-    const std::string src =
-            "// This is a regular comment\n"
-            "/* This is a regular inline comment */\n"
-            "// /* This should still be parsed as a regular comment */\n"
-            "/* This is a regular comment with a // in it */\n"
-            "/* This is an invalid comment that doesnt have the closing";
+    const std::string src = R"(
+            // This is a regular comment
+            /* This is a regular inline comment */
+            // /* This should still be parsed as a regular comment */
+            /* This is a regular comment with a // in it */
+            /* This is an invalid comment that doesnt have the closing
+        )";
 
     Lexer lexer(src);
     EXPECT_EQ(lexer.NextToken().Type, TokenType::Comment);
@@ -129,8 +130,6 @@ TEST_F(LexerTest, TestNumberParsing)
         3ll
         3LL
     )";
-
-    // Technically mixing upper and lower cases are allowed, but we won't test that.
 
     Lexer lexer(src);
     EXPECT_EQ(lexer.NextToken().Type, TokenType::NumberInt); // 0123456789

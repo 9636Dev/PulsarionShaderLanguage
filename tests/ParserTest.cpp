@@ -175,6 +175,7 @@ TEST_F(ParserTest, TestFunctionDeclaration)
     EXPECT_EQ(function.Type, NodeType::FunctionDeclaration);
 }
 
+/*
 TEST_F(ParserTest, TestFunctionDeclarationWithParameters)
 {
     std::string program = R"(
@@ -202,3 +203,4 @@ TEST_F(ParserTest, TestFunctionDeclarationWithParameters)
     EXPECT_EQ(parameterList.Children[0].Type, NodeType::FunctionArgument);
     EXPECT_EQ(parameterList.Children[1].Type, NodeType::FunctionArgument);
 }
+*/

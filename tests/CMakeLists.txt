@@ -4,8 +4,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(PULSARION_SHADER_LANGUAGE_TEST_SOURCES
-        LexerTest.cpp
-        ParserTest.cpp
+    PreprocessorTest.cpp
+    LexerTest.cpp
+    ParserTest.cpp
 )
 add_executable(PulsarionShaderLanguageTests ${PULSARION_SHADER_LANGUAGE_TEST_SOURCES})
 

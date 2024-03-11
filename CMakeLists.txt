@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(PULSARION_SHADER_LANGUAGE_SOURCES
     src/PulsarionShaderLanguage/Core.hpp
     src/PulsarionShaderLanguage/Core.cpp
+    src/PulsarionShaderLanguage/StrUtil.hpp
+    src/PulsarionShaderLanguage/StrUtil.cpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.hpp
     src/PulsarionShaderLanguage/PulsarionShaderLanguage.cpp
     src/PulsarionShaderLanguage/Preprocessor.hpp
