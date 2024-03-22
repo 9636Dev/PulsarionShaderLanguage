@@ -27,9 +27,10 @@ class PreprocessorTest : public testing::TestWithParam<PreprocessorTestParam>
 TEST_P(PreprocessorTest, Test)
 {
     auto param = GetParam();
-    auto file = Pulsarion::File::ReadAllText(param.Path);
-    if (file.empty())
+    auto res = Pulsarion::File::ReadAllText(Pulsarion::File(param.Path));
+    if (!res.has_value())
         throw std::runtime_error("Failed to read file: " + param.Path.string());
+    auto file = res.value();
 
     Preprocessor preprocessor(file, param.Path);
     auto result = preprocessor.Process();

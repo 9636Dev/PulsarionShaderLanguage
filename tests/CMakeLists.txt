@@ -13,6 +13,12 @@ add_executable(PulsarionShaderLanguageTests ${PULSARION_SHADER_LANGUAGE_TEST_SOU
 target_link_libraries(PulsarionShaderLanguageTests PRIVATE PulsarionCore)
 target_link_libraries(PulsarionShaderLanguageTests PRIVATE PulsarionShaderLanguage)
 
+if (MSVC)
+    set_target_properties(PulsarionShaderLanguageTests PROPERTIES
+      VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build"
+    )
+endif()
+
 if (NOT TARGET gtest_main)
     add_subdirectory(vendor/googletest)
 endif()

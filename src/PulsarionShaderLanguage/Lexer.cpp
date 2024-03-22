@@ -45,8 +45,8 @@ namespace Pulsarion::Shader
     {
         SkipWhitespace();
 
-        if (m_Index + 1 >= m_Source.size())
-            return {TokenType::EndOfFile, "", m_Line, m_Column, m_Index}; // We are at the end of the file, + 1 because we count the character we advance.
+        if (m_Index >= m_Source.size())
+            return {TokenType::EndOfFile, "", m_Line, m_Column, m_Index}; 
 
         const char c = NextChar();
         std::size_t column = m_Column - 1;
